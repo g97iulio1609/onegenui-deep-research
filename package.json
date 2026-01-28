@@ -1,0 +1,58 @@
+{
+  "name": "@onegenui/deep-research",
+  "version": "0.1.0",
+  "description": "Deep Research engine with multi-level effort, parallel execution, and rich content output",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/tools.ts --format esm --dts --clean --external ai",
+    "dev": "tsup src/index.ts src/tools.ts --format esm --dts --watch --external ai",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@onegenui/core": "workspace:*",
+    "@onegenui/mcp": "workspace:*",
+    "@onegenui/providers": "workspace:*",
+    "@onegenui/schemas": "workspace:*",
+    "@onegenui/utils": "workspace:*",
+    "@onegenui/web-search": "workspace:*",
+    "lru-cache": "^10.4.3",
+    "p-limit": "^6.1.0",
+    "uuid": "^11.0.5",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "ai": "^4.3.16",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "ai": "^4.0.0",
+    "zod": "^3.25.0"
+  },
+  "peerDependenciesMeta": {
+    "ai": {
+      "optional": true
+    }
+  }
+}
