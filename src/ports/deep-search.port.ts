@@ -33,7 +33,7 @@ export interface SearchProgress {
 
 /**
  * Port for web search operations
- * Implementations: Crawl4AI (no browser), SearXNG, Brave, etc.
+ * Implementations: OneCrawl (no browser), SearXNG, Brave, etc.
  */
 export interface DeepSearchPort {
   /** Execute a single search query */

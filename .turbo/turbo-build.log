@@ -8,12 +8,12 @@ CLI tsup v8.5.1
 CLI Target: es2022
 CLI Cleaning output folder
 ESM Build start
+ESM dist/tools.js          157.00 B
 ESM dist/chunk-CEAX4PIX.js 23.88 KB
 ESM dist/index.js          84.82 KB
-ESM dist/tools.js          157.00 B
-ESM ⚡️ Build success in 19ms
+ESM ⚡️ Build success in 16ms
 DTS Build start
-DTS ⚡️ Build success in 1221ms
+DTS ⚡️ Build success in 1175ms
 DTS dist/index.d.ts          27.05 KB
 DTS dist/tools.d.ts          162.00 B
-DTS dist/tools-BBoLFPsl.d.ts 114.20 KB
+DTS dist/tools-DnTcE91c.d.ts 114.20 KB

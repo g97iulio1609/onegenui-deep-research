@@ -122,11 +122,11 @@ declare const SourceSchema: z.ZodObject<{
     wordCount: z.ZodOptional<z.ZodNumber>;
     language: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
-    sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+    sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     credibilityScore: number;
     relevanceScore: number;
     media: {
@@ -139,6 +139,7 @@ declare const SourceSchema: z.ZodObject<{
         height?: number | undefined;
     }[];
     requiresAuth: boolean;
+    language?: string | undefined;
     snippet?: string | undefined;
     content?: string | undefined;
     favicon?: string | undefined;
@@ -148,15 +149,15 @@ declare const SourceSchema: z.ZodObject<{
     authProvider?: string | undefined;
     extractedAt?: Date | undefined;
     wordCount?: number | undefined;
-    language?: string | undefined;
 }, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
-    sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+    sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     credibilityScore: number;
     relevanceScore: number;
+    language?: string | undefined;
     snippet?: string | undefined;
     content?: string | undefined;
     favicon?: string | undefined;
@@ -176,7 +177,6 @@ declare const SourceSchema: z.ZodObject<{
     authProvider?: string | undefined;
     extractedAt?: Date | undefined;
     wordCount?: number | undefined;
-    language?: string | undefined;
 }>;
 type Source = z.infer<typeof SourceSchema>;
 declare const RankedSourceSchema: z.ZodObject<{
@@ -226,11 +226,11 @@ declare const RankedSourceSchema: z.ZodObject<{
     rank: z.ZodNumber;
     finalScore: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
-    sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+    sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     credibilityScore: number;
     relevanceScore: number;
     finalScore: number;
@@ -245,6 +245,7 @@ declare const RankedSourceSchema: z.ZodObject<{
     }[];
     requiresAuth: boolean;
     rank: number;
+    language?: string | undefined;
     snippet?: string | undefined;
     content?: string | undefined;
     favicon?: string | undefined;
@@ -253,17 +254,17 @@ declare const RankedSourceSchema: z.ZodObject<{
     authProvider?: string | undefined;
     extractedAt?: Date | undefined;
     wordCount?: number | undefined;
-    language?: string | undefined;
 }, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
-    sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+    sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     credibilityScore: number;
     relevanceScore: number;
     finalScore: number;
     rank: number;
+    language?: string | undefined;
     snippet?: string | undefined;
     content?: string | undefined;
     favicon?: string | undefined;
@@ -282,7 +283,6 @@ declare const RankedSourceSchema: z.ZodObject<{
     authProvider?: string | undefined;
     extractedAt?: Date | undefined;
     wordCount?: number | undefined;
-    language?: string | undefined;
 }>;
 type RankedSource = z.infer<typeof RankedSourceSchema>;
 
@@ -301,20 +301,20 @@ declare const SubQuerySchema: z.ZodObject<{
     parentId: z.ZodOptional<z.ZodString>;
     depth: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    depth: number;
-    id: string;
     query: string;
+    id: string;
     purpose: string;
-    strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+    strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
     priority: number;
+    depth: number;
     parentId?: string | undefined;
 }, {
-    depth: number;
-    id: string;
     query: string;
+    id: string;
     purpose: string;
-    strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+    strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
     priority: number;
+    depth: number;
     parentId?: string | undefined;
 }>;
 type SubQuery = z.infer<typeof SubQuerySchema>;
@@ -332,20 +332,20 @@ declare const ResearchQuerySchema: z.ZodObject<{
         parentId: z.ZodOptional<z.ZodString>;
         depth: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        depth: number;
-        id: string;
         query: string;
+        id: string;
         purpose: string;
-        strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+        strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
         priority: number;
+        depth: number;
         parentId?: string | undefined;
     }, {
-        depth: number;
-        id: string;
         query: string;
+        id: string;
         purpose: string;
-        strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+        strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
         priority: number;
+        depth: number;
         parentId?: string | undefined;
     }>, "many">;
     temporalFocus: z.ZodDefault<z.ZodEnum<["recent", "historical", "all", "specific"]>>;
@@ -398,20 +398,6 @@ declare const ResearchQuerySchema: z.ZodObject<{
     context: z.ZodOptional<z.ZodString>;
     createdAt: z.ZodDate;
 }, "strip", z.ZodTypeAny, {
-    id: string;
-    language: string;
-    originalQuery: string;
-    mainTopics: string[];
-    subQueries: {
-        depth: number;
-        id: string;
-        query: string;
-        purpose: string;
-        strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-        priority: number;
-        parentId?: string | undefined;
-    }[];
-    temporalFocus: "recent" | "historical" | "all" | "specific";
     effort: {
         level: "standard" | "deep" | "max";
         maxSteps: number;
@@ -424,27 +410,29 @@ declare const ResearchQuerySchema: z.ZodObject<{
         autoStopOnQuality: boolean;
         qualityThreshold: number;
     };
+    id: string;
+    originalQuery: string;
+    mainTopics: string[];
+    subQueries: {
+        query: string;
+        id: string;
+        purpose: string;
+        strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+        priority: number;
+        depth: number;
+        parentId?: string | undefined;
+    }[];
+    temporalFocus: "recent" | "historical" | "all" | "specific";
+    language: string;
     createdAt: Date;
+    context?: string | undefined;
     refinedQuery?: string | undefined;
     temporalRange?: {
         start?: Date | undefined;
         end?: Date | undefined;
     } | undefined;
     geographicFocus?: string | undefined;
-    context?: string | undefined;
 }, {
-    id: string;
-    originalQuery: string;
-    mainTopics: string[];
-    subQueries: {
-        depth: number;
-        id: string;
-        query: string;
-        purpose: string;
-        strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-        priority: number;
-        parentId?: string | undefined;
-    }[];
     effort: {
         level: "standard" | "deep" | "max";
         maxSteps: number;
@@ -457,8 +445,20 @@ declare const ResearchQuerySchema: z.ZodObject<{
         autoStopOnQuality: boolean;
         qualityThreshold: number;
     };
+    id: string;
+    originalQuery: string;
+    mainTopics: string[];
+    subQueries: {
+        query: string;
+        id: string;
+        purpose: string;
+        strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+        priority: number;
+        depth: number;
+        parentId?: string | undefined;
+    }[];
     createdAt: Date;
-    language?: string | undefined;
+    context?: string | undefined;
     refinedQuery?: string | undefined;
     temporalFocus?: "recent" | "historical" | "all" | "specific" | undefined;
     temporalRange?: {
@@ -466,7 +466,7 @@ declare const ResearchQuerySchema: z.ZodObject<{
         end?: Date | undefined;
     } | undefined;
     geographicFocus?: string | undefined;
-    context?: string | undefined;
+    language?: string | undefined;
 }>;
 type ResearchQuery = z.infer<typeof ResearchQuerySchema>;
 
@@ -488,18 +488,18 @@ declare const EntitySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
     id: string;
+    confidence: number;
+    sourceIds: string[];
     name: string;
     aliases: string[];
-    sourceIds: string[];
-    confidence: number;
     description?: string | undefined;
     metadata?: Record<string, unknown> | undefined;
 }, {
     type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
     id: string;
-    name: string;
-    sourceIds: string[];
     confidence: number;
+    sourceIds: string[];
+    name: string;
     description?: string | undefined;
     aliases?: string[] | undefined;
     metadata?: Record<string, unknown> | undefined;
@@ -546,18 +546,18 @@ declare const KnowledgeGraphSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
         id: string;
+        confidence: number;
+        sourceIds: string[];
         name: string;
         aliases: string[];
-        sourceIds: string[];
-        confidence: number;
         description?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     }, {
         type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
         id: string;
-        name: string;
-        sourceIds: string[];
         confidence: number;
+        sourceIds: string[];
+        name: string;
         description?: string | undefined;
         aliases?: string[] | undefined;
         metadata?: Record<string, unknown> | undefined;
@@ -607,10 +607,10 @@ declare const KnowledgeGraphSchema: z.ZodObject<{
     entities: {
         type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
         id: string;
+        confidence: number;
+        sourceIds: string[];
         name: string;
         aliases: string[];
-        sourceIds: string[];
-        confidence: number;
         description?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     }[];
@@ -633,9 +633,9 @@ declare const KnowledgeGraphSchema: z.ZodObject<{
     entities: {
         type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
         id: string;
-        name: string;
-        sourceIds: string[];
         confidence: number;
+        sourceIds: string[];
+        name: string;
         description?: string | undefined;
         aliases?: string[] | undefined;
         metadata?: Record<string, unknown> | undefined;
@@ -692,17 +692,17 @@ declare const CitationSchema: z.ZodObject<{
     favicon: z.ZodOptional<z.ZodString>;
     publishedAt: z.ZodOptional<z.ZodDate>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
     sourceId: string;
     favicon?: string | undefined;
     publishedAt?: Date | undefined;
 }, {
+    id: string;
     url: string;
     title: string;
-    id: string;
     domain: string;
     sourceId: string;
     favicon?: string | undefined;
@@ -755,8 +755,8 @@ declare const SectionSchema: z.ZodObject<{
     }>, "many">>;
     order: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    title: string;
     id: string;
+    title: string;
     content: string;
     media: {
         type: "image" | "video" | "audio" | "document";
@@ -776,8 +776,8 @@ declare const SectionSchema: z.ZodObject<{
     order: number;
     summary?: string | undefined;
 }, {
-    title: string;
     id: string;
+    title: string;
     content: string;
     citationIds: string[];
     order: number;
@@ -806,15 +806,15 @@ declare const KeyFindingSchema: z.ZodObject<{
     category: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
+    finding: string;
     confidence: "high" | "medium" | "low";
     citationIds: string[];
-    finding: string;
     category?: string | undefined;
 }, {
     id: string;
+    finding: string;
     confidence: "high" | "medium" | "low";
     citationIds: string[];
-    finding: string;
     category?: string | undefined;
 }>;
 type KeyFinding = z.infer<typeof KeyFindingSchema>;
@@ -826,31 +826,31 @@ declare const ConflictSchema: z.ZodObject<{
         sourceIds: z.ZodArray<z.ZodString, "many">;
         citationIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
-        sourceIds: string[];
         citationIds: string[];
         viewpoint: string;
+        sourceIds: string[];
     }, {
-        sourceIds: string[];
         citationIds: string[];
         viewpoint: string;
+        sourceIds: string[];
     }>, "many">;
     significance: z.ZodEnum<["high", "medium", "low"]>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     topic: string;
     perspectives: {
-        sourceIds: string[];
         citationIds: string[];
         viewpoint: string;
+        sourceIds: string[];
     }[];
     significance: "high" | "medium" | "low";
 }, {
     id: string;
     topic: string;
     perspectives: {
-        sourceIds: string[];
         citationIds: string[];
         viewpoint: string;
+        sourceIds: string[];
     }[];
     significance: "high" | "medium" | "low";
 }>;
@@ -865,15 +865,15 @@ declare const SynthesisSchema: z.ZodObject<{
         category: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
+        finding: string;
         confidence: "high" | "medium" | "low";
         citationIds: string[];
-        finding: string;
         category?: string | undefined;
     }, {
         id: string;
+        finding: string;
         confidence: "high" | "medium" | "low";
         citationIds: string[];
-        finding: string;
         category?: string | undefined;
     }>, "many">;
     sections: z.ZodArray<z.ZodObject<{
@@ -922,8 +922,8 @@ declare const SynthesisSchema: z.ZodObject<{
         }>, "many">>;
         order: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         content: string;
         media: {
             type: "image" | "video" | "audio" | "document";
@@ -943,8 +943,8 @@ declare const SynthesisSchema: z.ZodObject<{
         order: number;
         summary?: string | undefined;
     }, {
-        title: string;
         id: string;
+        title: string;
         content: string;
         citationIds: string[];
         order: number;
@@ -972,31 +972,31 @@ declare const SynthesisSchema: z.ZodObject<{
             sourceIds: z.ZodArray<z.ZodString, "many">;
             citationIds: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }, {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }>, "many">;
         significance: z.ZodEnum<["high", "medium", "low"]>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         topic: string;
         perspectives: {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }[];
         significance: "high" | "medium" | "low";
     }, {
         id: string;
         topic: string;
         perspectives: {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }[];
         significance: "high" | "medium" | "low";
     }>, "many">>;
@@ -1009,17 +1009,17 @@ declare const SynthesisSchema: z.ZodObject<{
         favicon: z.ZodOptional<z.ZodString>;
         publishedAt: z.ZodOptional<z.ZodDate>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
         sourceId: string;
         favicon?: string | undefined;
         publishedAt?: Date | undefined;
     }, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
         sourceId: string;
         favicon?: string | undefined;
@@ -1031,14 +1031,14 @@ declare const SynthesisSchema: z.ZodObject<{
     executiveSummary: string;
     keyFindings: {
         id: string;
+        finding: string;
         confidence: "high" | "medium" | "low";
         citationIds: string[];
-        finding: string;
         category?: string | undefined;
     }[];
     sections: {
-        title: string;
         id: string;
+        title: string;
         content: string;
         media: {
             type: "image" | "video" | "audio" | "document";
@@ -1062,16 +1062,16 @@ declare const SynthesisSchema: z.ZodObject<{
         id: string;
         topic: string;
         perspectives: {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }[];
         significance: "high" | "medium" | "low";
     }[];
     citations: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
         sourceId: string;
         favicon?: string | undefined;
@@ -1083,14 +1083,14 @@ declare const SynthesisSchema: z.ZodObject<{
     executiveSummary: string;
     keyFindings: {
         id: string;
+        finding: string;
         confidence: "high" | "medium" | "low";
         citationIds: string[];
-        finding: string;
         category?: string | undefined;
     }[];
     sections: {
-        title: string;
         id: string;
+        title: string;
         content: string;
         citationIds: string[];
         order: number;
@@ -1111,9 +1111,9 @@ declare const SynthesisSchema: z.ZodObject<{
         }[] | undefined;
     }[];
     citations: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
         sourceId: string;
         favicon?: string | undefined;
@@ -1124,9 +1124,9 @@ declare const SynthesisSchema: z.ZodObject<{
         id: string;
         topic: string;
         perspectives: {
-            sourceIds: string[];
             citationIds: string[];
             viewpoint: string;
+            sourceIds: string[];
         }[];
         significance: "high" | "medium" | "low";
     }[] | undefined;
@@ -1174,19 +1174,19 @@ declare const QualityScoreSchema: z.ZodObject<{
     coherence: z.ZodNumber;
     isSOTA: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    completeness: number;
     depth: number;
-    diversity: number;
     overall: number;
+    completeness: number;
     accuracy: number;
+    diversity: number;
     coherence: number;
     isSOTA: boolean;
 }, {
-    completeness: number;
     depth: number;
-    diversity: number;
     overall: number;
+    completeness: number;
     accuracy: number;
+    diversity: number;
     coherence: number;
     isSOTA: boolean;
 }>;
@@ -1200,15 +1200,15 @@ declare const ChartConfigSchema: z.ZodObject<{
     description: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     type: "bar" | "line" | "area" | "pie" | "scatter";
-    title: string;
     data: Record<string, string | number>[];
+    title: string;
     xKey: string;
     yKeys: string[];
     description?: string | undefined;
 }, {
     type: "bar" | "line" | "area" | "pie" | "scatter";
-    title: string;
     data: Record<string, string | number>[];
+    title: string;
     xKey: string;
     yKeys: string[];
     description?: string | undefined;
@@ -1222,16 +1222,16 @@ declare const TimelineEventSchema: z.ZodObject<{
     sourceIds: z.ZodArray<z.ZodString, "many">;
     importance: z.ZodEnum<["high", "medium", "low"]>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     date: Date;
     title: string;
-    id: string;
     sourceIds: string[];
     importance: "high" | "medium" | "low";
     description?: string | undefined;
 }, {
+    id: string;
     date: Date;
     title: string;
-    id: string;
     sourceIds: string[];
     importance: "high" | "medium" | "low";
     description?: string | undefined;
@@ -1253,20 +1253,20 @@ declare const ResearchResultSchema: z.ZodObject<{
             parentId: z.ZodOptional<z.ZodString>;
             depth: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            depth: number;
-            id: string;
             query: string;
+            id: string;
             purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
             priority: number;
+            depth: number;
             parentId?: string | undefined;
         }, {
-            depth: number;
-            id: string;
             query: string;
+            id: string;
             purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
             priority: number;
+            depth: number;
             parentId?: string | undefined;
         }>, "many">;
         temporalFocus: z.ZodDefault<z.ZodEnum<["recent", "historical", "all", "specific"]>>;
@@ -1319,20 +1319,6 @@ declare const ResearchResultSchema: z.ZodObject<{
         context: z.ZodOptional<z.ZodString>;
         createdAt: z.ZodDate;
     }, "strip", z.ZodTypeAny, {
-        id: string;
-        language: string;
-        originalQuery: string;
-        mainTopics: string[];
-        subQueries: {
-            depth: number;
-            id: string;
-            query: string;
-            purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-            priority: number;
-            parentId?: string | undefined;
-        }[];
-        temporalFocus: "recent" | "historical" | "all" | "specific";
         effort: {
             level: "standard" | "deep" | "max";
             maxSteps: number;
@@ -1345,27 +1331,29 @@ declare const ResearchResultSchema: z.ZodObject<{
             autoStopOnQuality: boolean;
             qualityThreshold: number;
         };
+        id: string;
+        originalQuery: string;
+        mainTopics: string[];
+        subQueries: {
+            query: string;
+            id: string;
+            purpose: string;
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+            priority: number;
+            depth: number;
+            parentId?: string | undefined;
+        }[];
+        temporalFocus: "recent" | "historical" | "all" | "specific";
+        language: string;
         createdAt: Date;
+        context?: string | undefined;
         refinedQuery?: string | undefined;
         temporalRange?: {
             start?: Date | undefined;
             end?: Date | undefined;
         } | undefined;
         geographicFocus?: string | undefined;
-        context?: string | undefined;
     }, {
-        id: string;
-        originalQuery: string;
-        mainTopics: string[];
-        subQueries: {
-            depth: number;
-            id: string;
-            query: string;
-            purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-            priority: number;
-            parentId?: string | undefined;
-        }[];
         effort: {
             level: "standard" | "deep" | "max";
             maxSteps: number;
@@ -1378,8 +1366,20 @@ declare const ResearchResultSchema: z.ZodObject<{
             autoStopOnQuality: boolean;
             qualityThreshold: number;
         };
+        id: string;
+        originalQuery: string;
+        mainTopics: string[];
+        subQueries: {
+            query: string;
+            id: string;
+            purpose: string;
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+            priority: number;
+            depth: number;
+            parentId?: string | undefined;
+        }[];
         createdAt: Date;
-        language?: string | undefined;
+        context?: string | undefined;
         refinedQuery?: string | undefined;
         temporalFocus?: "recent" | "historical" | "all" | "specific" | undefined;
         temporalRange?: {
@@ -1387,7 +1387,7 @@ declare const ResearchResultSchema: z.ZodObject<{
             end?: Date | undefined;
         } | undefined;
         geographicFocus?: string | undefined;
-        context?: string | undefined;
+        language?: string | undefined;
     }>;
     status: z.ZodEnum<["pending", "decomposing", "searching", "ranking", "extracting", "analyzing", "synthesizing", "visualizing", "completed", "failed", "stopped"]>;
     progress: z.ZodNumber;
@@ -1437,11 +1437,11 @@ declare const ResearchResultSchema: z.ZodObject<{
         wordCount: z.ZodOptional<z.ZodNumber>;
         language: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
         credibilityScore: number;
         relevanceScore: number;
         media: {
@@ -1454,6 +1454,7 @@ declare const ResearchResultSchema: z.ZodObject<{
             height?: number | undefined;
         }[];
         requiresAuth: boolean;
+        language?: string | undefined;
         snippet?: string | undefined;
         content?: string | undefined;
         favicon?: string | undefined;
@@ -1463,15 +1464,15 @@ declare const ResearchResultSchema: z.ZodObject<{
         authProvider?: string | undefined;
         extractedAt?: Date | undefined;
         wordCount?: number | undefined;
-        language?: string | undefined;
     }, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
         credibilityScore: number;
         relevanceScore: number;
+        language?: string | undefined;
         snippet?: string | undefined;
         content?: string | undefined;
         favicon?: string | undefined;
@@ -1491,7 +1492,6 @@ declare const ResearchResultSchema: z.ZodObject<{
         authProvider?: string | undefined;
         extractedAt?: Date | undefined;
         wordCount?: number | undefined;
-        language?: string | undefined;
     }>, "many">;
     synthesis: z.ZodOptional<z.ZodObject<{
         executiveSummary: z.ZodString;
@@ -1503,15 +1503,15 @@ declare const ResearchResultSchema: z.ZodObject<{
             category: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }, {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }>, "many">;
         sections: z.ZodArray<z.ZodObject<{
@@ -1560,8 +1560,8 @@ declare const ResearchResultSchema: z.ZodObject<{
             }>, "many">>;
             order: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            title: string;
             id: string;
+            title: string;
             content: string;
             media: {
                 type: "image" | "video" | "audio" | "document";
@@ -1581,8 +1581,8 @@ declare const ResearchResultSchema: z.ZodObject<{
             order: number;
             summary?: string | undefined;
         }, {
-            title: string;
             id: string;
+            title: string;
             content: string;
             citationIds: string[];
             order: number;
@@ -1610,31 +1610,31 @@ declare const ResearchResultSchema: z.ZodObject<{
                 sourceIds: z.ZodArray<z.ZodString, "many">;
                 citationIds: z.ZodArray<z.ZodString, "many">;
             }, "strip", z.ZodTypeAny, {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }, {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }>, "many">;
             significance: z.ZodEnum<["high", "medium", "low"]>;
         }, "strip", z.ZodTypeAny, {
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }, {
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }>, "many">>;
@@ -1647,17 +1647,17 @@ declare const ResearchResultSchema: z.ZodObject<{
             favicon: z.ZodOptional<z.ZodString>;
             publishedAt: z.ZodOptional<z.ZodDate>;
         }, "strip", z.ZodTypeAny, {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
             publishedAt?: Date | undefined;
         }, {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
@@ -1669,14 +1669,14 @@ declare const ResearchResultSchema: z.ZodObject<{
         executiveSummary: string;
         keyFindings: {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }[];
         sections: {
-            title: string;
             id: string;
+            title: string;
             content: string;
             media: {
                 type: "image" | "video" | "audio" | "document";
@@ -1700,16 +1700,16 @@ declare const ResearchResultSchema: z.ZodObject<{
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }[];
         citations: {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
@@ -1721,14 +1721,14 @@ declare const ResearchResultSchema: z.ZodObject<{
         executiveSummary: string;
         keyFindings: {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }[];
         sections: {
-            title: string;
             id: string;
+            title: string;
             content: string;
             citationIds: string[];
             order: number;
@@ -1749,9 +1749,9 @@ declare const ResearchResultSchema: z.ZodObject<{
             }[] | undefined;
         }[];
         citations: {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
@@ -1762,9 +1762,9 @@ declare const ResearchResultSchema: z.ZodObject<{
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }[] | undefined;
@@ -1783,18 +1783,18 @@ declare const ResearchResultSchema: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
+            confidence: number;
+            sourceIds: string[];
             name: string;
             aliases: string[];
-            sourceIds: string[];
-            confidence: number;
             description?: string | undefined;
             metadata?: Record<string, unknown> | undefined;
         }, {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
-            name: string;
-            sourceIds: string[];
             confidence: number;
+            sourceIds: string[];
+            name: string;
             description?: string | undefined;
             aliases?: string[] | undefined;
             metadata?: Record<string, unknown> | undefined;
@@ -1844,10 +1844,10 @@ declare const ResearchResultSchema: z.ZodObject<{
         entities: {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
+            confidence: number;
+            sourceIds: string[];
             name: string;
             aliases: string[];
-            sourceIds: string[];
-            confidence: number;
             description?: string | undefined;
             metadata?: Record<string, unknown> | undefined;
         }[];
@@ -1870,9 +1870,9 @@ declare const ResearchResultSchema: z.ZodObject<{
         entities: {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
-            name: string;
-            sourceIds: string[];
             confidence: number;
+            sourceIds: string[];
+            name: string;
             description?: string | undefined;
             aliases?: string[] | undefined;
             metadata?: Record<string, unknown> | undefined;
@@ -1912,15 +1912,15 @@ declare const ResearchResultSchema: z.ZodObject<{
         description: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         type: "bar" | "line" | "area" | "pie" | "scatter";
-        title: string;
         data: Record<string, string | number>[];
+        title: string;
         xKey: string;
         yKeys: string[];
         description?: string | undefined;
     }, {
         type: "bar" | "line" | "area" | "pie" | "scatter";
-        title: string;
         data: Record<string, string | number>[];
+        title: string;
         xKey: string;
         yKeys: string[];
         description?: string | undefined;
@@ -1933,16 +1933,16 @@ declare const ResearchResultSchema: z.ZodObject<{
         sourceIds: z.ZodArray<z.ZodString, "many">;
         importance: z.ZodEnum<["high", "medium", "low"]>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         date: Date;
         title: string;
-        id: string;
         sourceIds: string[];
         importance: "high" | "medium" | "low";
         description?: string | undefined;
     }, {
+        id: string;
         date: Date;
         title: string;
-        id: string;
         sourceIds: string[];
         importance: "high" | "medium" | "low";
         description?: string | undefined;
@@ -1956,19 +1956,19 @@ declare const ResearchResultSchema: z.ZodObject<{
         coherence: z.ZodNumber;
         isSOTA: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        completeness: number;
         depth: number;
-        diversity: number;
         overall: number;
+        completeness: number;
         accuracy: number;
+        diversity: number;
         coherence: number;
         isSOTA: boolean;
     }, {
-        completeness: number;
         depth: number;
-        diversity: number;
         overall: number;
+        completeness: number;
         accuracy: number;
+        diversity: number;
         coherence: number;
         isSOTA: boolean;
     }>>;
@@ -2004,23 +2004,7 @@ declare const ResearchResultSchema: z.ZodObject<{
     completedAt: z.ZodOptional<z.ZodDate>;
     error: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "decomposing" | "searching" | "ranking" | "extracting" | "analyzing" | "synthesizing" | "visualizing" | "completed" | "failed" | "stopped";
-    id: string;
     query: {
-        id: string;
-        language: string;
-        originalQuery: string;
-        mainTopics: string[];
-        subQueries: {
-            depth: number;
-            id: string;
-            query: string;
-            purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-            priority: number;
-            parentId?: string | undefined;
-        }[];
-        temporalFocus: "recent" | "historical" | "all" | "specific";
         effort: {
             level: "standard" | "deep" | "max";
             maxSteps: number;
@@ -2033,23 +2017,39 @@ declare const ResearchResultSchema: z.ZodObject<{
             autoStopOnQuality: boolean;
             qualityThreshold: number;
         };
+        id: string;
+        originalQuery: string;
+        mainTopics: string[];
+        subQueries: {
+            query: string;
+            id: string;
+            purpose: string;
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+            priority: number;
+            depth: number;
+            parentId?: string | undefined;
+        }[];
+        temporalFocus: "recent" | "historical" | "all" | "specific";
+        language: string;
         createdAt: Date;
+        context?: string | undefined;
         refinedQuery?: string | undefined;
         temporalRange?: {
             start?: Date | undefined;
             end?: Date | undefined;
         } | undefined;
         geographicFocus?: string | undefined;
-        context?: string | undefined;
     };
+    status: "pending" | "decomposing" | "searching" | "ranking" | "extracting" | "analyzing" | "synthesizing" | "visualizing" | "completed" | "failed" | "stopped";
+    id: string;
     progress: number;
     currentPhase: string;
     sources: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
         credibilityScore: number;
         relevanceScore: number;
         media: {
@@ -2062,6 +2062,7 @@ declare const ResearchResultSchema: z.ZodObject<{
             height?: number | undefined;
         }[];
         requiresAuth: boolean;
+        language?: string | undefined;
         snippet?: string | undefined;
         content?: string | undefined;
         favicon?: string | undefined;
@@ -2071,20 +2072,19 @@ declare const ResearchResultSchema: z.ZodObject<{
         authProvider?: string | undefined;
         extractedAt?: Date | undefined;
         wordCount?: number | undefined;
-        language?: string | undefined;
     }[];
     charts: {
         type: "bar" | "line" | "area" | "pie" | "scatter";
-        title: string;
         data: Record<string, string | number>[];
+        title: string;
         xKey: string;
         yKeys: string[];
         description?: string | undefined;
     }[];
     timeline: {
+        id: string;
         date: Date;
         title: string;
-        id: string;
         sourceIds: string[];
         importance: "high" | "medium" | "low";
         description?: string | undefined;
@@ -2100,18 +2100,19 @@ declare const ResearchResultSchema: z.ZodObject<{
         tokensUsed?: number | undefined;
     };
     startedAt: Date;
+    error?: string | undefined;
     synthesis?: {
         executiveSummary: string;
         keyFindings: {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }[];
         sections: {
-            title: string;
             id: string;
+            title: string;
             content: string;
             media: {
                 type: "image" | "video" | "audio" | "document";
@@ -2135,16 +2136,16 @@ declare const ResearchResultSchema: z.ZodObject<{
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }[];
         citations: {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
@@ -2157,10 +2158,10 @@ declare const ResearchResultSchema: z.ZodObject<{
         entities: {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
+            confidence: number;
+            sourceIds: string[];
             name: string;
             aliases: string[];
-            sourceIds: string[];
-            confidence: number;
             description?: string | undefined;
             metadata?: Record<string, unknown> | undefined;
         }[];
@@ -2185,32 +2186,17 @@ declare const ResearchResultSchema: z.ZodObject<{
         root: MindMapNode;
     } | undefined;
     quality?: {
-        completeness: number;
         depth: number;
-        diversity: number;
         overall: number;
+        completeness: number;
         accuracy: number;
+        diversity: number;
         coherence: number;
         isSOTA: boolean;
     } | undefined;
     completedAt?: Date | undefined;
-    error?: string | undefined;
 }, {
-    status: "pending" | "decomposing" | "searching" | "ranking" | "extracting" | "analyzing" | "synthesizing" | "visualizing" | "completed" | "failed" | "stopped";
-    id: string;
     query: {
-        id: string;
-        originalQuery: string;
-        mainTopics: string[];
-        subQueries: {
-            depth: number;
-            id: string;
-            query: string;
-            purpose: string;
-            strategy: "academic" | "technical" | "news" | "social" | "official" | "broad";
-            priority: number;
-            parentId?: string | undefined;
-        }[];
         effort: {
             level: "standard" | "deep" | "max";
             maxSteps: number;
@@ -2223,8 +2209,20 @@ declare const ResearchResultSchema: z.ZodObject<{
             autoStopOnQuality: boolean;
             qualityThreshold: number;
         };
+        id: string;
+        originalQuery: string;
+        mainTopics: string[];
+        subQueries: {
+            query: string;
+            id: string;
+            purpose: string;
+            strategy: "broad" | "academic" | "news" | "technical" | "social" | "official";
+            priority: number;
+            depth: number;
+            parentId?: string | undefined;
+        }[];
         createdAt: Date;
-        language?: string | undefined;
+        context?: string | undefined;
         refinedQuery?: string | undefined;
         temporalFocus?: "recent" | "historical" | "all" | "specific" | undefined;
         temporalRange?: {
@@ -2232,18 +2230,21 @@ declare const ResearchResultSchema: z.ZodObject<{
             end?: Date | undefined;
         } | undefined;
         geographicFocus?: string | undefined;
-        context?: string | undefined;
+        language?: string | undefined;
     };
+    status: "pending" | "decomposing" | "searching" | "ranking" | "extracting" | "analyzing" | "synthesizing" | "visualizing" | "completed" | "failed" | "stopped";
+    id: string;
     progress: number;
     currentPhase: string;
     sources: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
         credibilityScore: number;
         relevanceScore: number;
+        language?: string | undefined;
         snippet?: string | undefined;
         content?: string | undefined;
         favicon?: string | undefined;
@@ -2263,7 +2264,6 @@ declare const ResearchResultSchema: z.ZodObject<{
         authProvider?: string | undefined;
         extractedAt?: Date | undefined;
         wordCount?: number | undefined;
-        language?: string | undefined;
     }[];
     stats: {
         totalSources: number;
@@ -2276,18 +2276,19 @@ declare const ResearchResultSchema: z.ZodObject<{
         tokensUsed?: number | undefined;
     };
     startedAt: Date;
+    error?: string | undefined;
     synthesis?: {
         executiveSummary: string;
         keyFindings: {
             id: string;
+            finding: string;
             confidence: "high" | "medium" | "low";
             citationIds: string[];
-            finding: string;
             category?: string | undefined;
         }[];
         sections: {
-            title: string;
             id: string;
+            title: string;
             content: string;
             citationIds: string[];
             order: number;
@@ -2308,9 +2309,9 @@ declare const ResearchResultSchema: z.ZodObject<{
             }[] | undefined;
         }[];
         citations: {
+            id: string;
             url: string;
             title: string;
-            id: string;
             domain: string;
             sourceId: string;
             favicon?: string | undefined;
@@ -2321,9 +2322,9 @@ declare const ResearchResultSchema: z.ZodObject<{
             id: string;
             topic: string;
             perspectives: {
-                sourceIds: string[];
                 citationIds: string[];
                 viewpoint: string;
+                sourceIds: string[];
             }[];
             significance: "high" | "medium" | "low";
         }[] | undefined;
@@ -2333,9 +2334,9 @@ declare const ResearchResultSchema: z.ZodObject<{
         entities: {
             type: "date" | "person" | "organization" | "location" | "concept" | "event" | "product" | "technology" | "metric";
             id: string;
-            name: string;
-            sourceIds: string[];
             confidence: number;
+            sourceIds: string[];
+            name: string;
             description?: string | undefined;
             aliases?: string[] | undefined;
             metadata?: Record<string, unknown> | undefined;
@@ -2362,31 +2363,30 @@ declare const ResearchResultSchema: z.ZodObject<{
     } | undefined;
     charts?: {
         type: "bar" | "line" | "area" | "pie" | "scatter";
-        title: string;
         data: Record<string, string | number>[];
+        title: string;
         xKey: string;
         yKeys: string[];
         description?: string | undefined;
     }[] | undefined;
     timeline?: {
+        id: string;
         date: Date;
         title: string;
-        id: string;
         sourceIds: string[];
         importance: "high" | "medium" | "low";
         description?: string | undefined;
     }[] | undefined;
     quality?: {
-        completeness: number;
         depth: number;
-        diversity: number;
         overall: number;
+        completeness: number;
         accuracy: number;
+        diversity: number;
         coherence: number;
         isSOTA: boolean;
     } | undefined;
     completedAt?: Date | undefined;
-    error?: string | undefined;
 }>;
 type ResearchResult = z.infer<typeof ResearchResultSchema>;
 
@@ -2481,19 +2481,19 @@ declare const StepCompletedEventSchema: z.ZodObject<{
     resultSummary: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     type: "step-completed";
+    success: boolean;
     durationMs: number;
     timestamp: Date;
     researchId: string;
     stepId: string;
-    success: boolean;
     resultSummary?: string | undefined;
 }, {
     type: "step-completed";
+    success: boolean;
     durationMs: number;
     timestamp: Date;
     researchId: string;
     stepId: string;
-    success: boolean;
     resultSummary?: string | undefined;
 }>;
 declare const SourceFoundEventSchema: z.ZodObject<{
@@ -2545,40 +2545,40 @@ declare const SourceFoundEventSchema: z.ZodObject<{
         extractedAt: z.ZodOptional<z.ZodDate>;
         wordCount: z.ZodOptional<z.ZodNumber>;
         language: z.ZodOptional<z.ZodString>;
-    }, "url" | "title" | "id" | "domain" | "sourceType">, "strip", z.ZodTypeAny, {
+    }, "id" | "url" | "title" | "domain" | "sourceType">, "strip", z.ZodTypeAny, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     }, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     }>;
 }, "strip", z.ZodTypeAny, {
     type: "source-found";
     timestamp: Date;
     researchId: string;
     source: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     };
 }, {
     type: "source-found";
     timestamp: Date;
     researchId: string;
     source: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     };
 }>;
 declare const SourceExtractedEventSchema: z.ZodObject<{
@@ -2614,16 +2614,16 @@ declare const FindingDiscoveredEventSchema: z.ZodObject<{
     sourceIds: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
     type: "finding-discovered";
-    sourceIds: string[];
-    confidence: "high" | "medium" | "low";
     finding: string;
+    confidence: "high" | "medium" | "low";
+    sourceIds: string[];
     timestamp: Date;
     researchId: string;
 }, {
     type: "finding-discovered";
-    sourceIds: string[];
-    confidence: "high" | "medium" | "low";
     finding: string;
+    confidence: "high" | "medium" | "low";
+    sourceIds: string[];
     timestamp: Date;
     researchId: string;
 }>;
@@ -2818,19 +2818,19 @@ declare const ResearchEventSchema: z.ZodDiscriminatedUnion<"type", [z.ZodObject<
     resultSummary: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     type: "step-completed";
+    success: boolean;
     durationMs: number;
     timestamp: Date;
     researchId: string;
     stepId: string;
-    success: boolean;
     resultSummary?: string | undefined;
 }, {
     type: "step-completed";
+    success: boolean;
     durationMs: number;
     timestamp: Date;
     researchId: string;
     stepId: string;
-    success: boolean;
     resultSummary?: string | undefined;
 }>, z.ZodObject<{
     timestamp: z.ZodDate;
@@ -2881,40 +2881,40 @@ declare const ResearchEventSchema: z.ZodDiscriminatedUnion<"type", [z.ZodObject<
         extractedAt: z.ZodOptional<z.ZodDate>;
         wordCount: z.ZodOptional<z.ZodNumber>;
         language: z.ZodOptional<z.ZodString>;
-    }, "url" | "title" | "id" | "domain" | "sourceType">, "strip", z.ZodTypeAny, {
+    }, "id" | "url" | "title" | "domain" | "sourceType">, "strip", z.ZodTypeAny, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     }, {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     }>;
 }, "strip", z.ZodTypeAny, {
     type: "source-found";
     timestamp: Date;
     researchId: string;
     source: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     };
 }, {
     type: "source-found";
     timestamp: Date;
     researchId: string;
     source: {
+        id: string;
         url: string;
         title: string;
-        id: string;
         domain: string;
-        sourceType: "academic" | "technical" | "general" | "news" | "social" | "official";
+        sourceType: "academic" | "news" | "technical" | "social" | "official" | "general";
     };
 }>, z.ZodObject<{
     timestamp: z.ZodDate;
@@ -2948,16 +2948,16 @@ declare const ResearchEventSchema: z.ZodDiscriminatedUnion<"type", [z.ZodObject<
     sourceIds: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
     type: "finding-discovered";
-    sourceIds: string[];
-    confidence: "high" | "medium" | "low";
     finding: string;
+    confidence: "high" | "medium" | "low";
+    sourceIds: string[];
     timestamp: Date;
     researchId: string;
 }, {
     type: "finding-discovered";
-    sourceIds: string[];
-    confidence: "high" | "medium" | "low";
     finding: string;
+    confidence: "high" | "medium" | "low";
+    sourceIds: string[];
     timestamp: Date;
     researchId: string;
 }>, z.ZodObject<{
@@ -3110,7 +3110,7 @@ interface SearchProgress {
 }
 /**
  * Port for web search operations
- * Implementations: Crawl4AI (no browser), SearXNG, Brave, etc.
+ * Implementations: OneCrawl (no browser), SearXNG, Brave, etc.
  */
 interface DeepSearchPort {
     /** Execute a single search query */
