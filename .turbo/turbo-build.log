@@ -1,19 +1,20 @@
 
+
 > @onegenui/deep-research@0.1.0 build /Users/giulioleone/Sviluppo/genUi/json-render/packages/deep-research
 > tsup src/index.ts src/tools.ts --format esm --dts --clean --external ai
 
-CLI Building entry: src/index.ts, src/tools.ts
-CLI Using tsconfig: tsconfig.json
-CLI tsup v8.5.1
-CLI Target: es2022
-CLI Cleaning output folder
-ESM Build start
-ESM dist/index.js          84.82 KB
-ESM dist/chunk-CEAX4PIX.js 23.88 KB
-ESM dist/tools.js          157.00 B
-ESM ⚡️ Build success in 18ms
+[34mCLI[39m Building entry: src/index.ts, src/tools.ts
+[34mCLI[39m Using tsconfig: tsconfig.json
+[34mCLI[39m tsup v8.5.1
+[34mCLI[39m Target: es2022
+[34mCLI[39m Cleaning output folder
+[34mESM[39m Build start
+[32mESM[39m [1mdist/index.js          [22m[32m84.82 KB[39m
+[32mESM[39m [1mdist/chunk-CEAX4PIX.js [22m[32m23.88 KB[39m
+[32mESM[39m [1mdist/tools.js          [22m[32m157.00 B[39m
+[32mESM[39m ⚡️ Build success in 16ms
 DTS Build start
-DTS ⚡️ Build success in 1413ms
+DTS ⚡️ Build success in 1211ms
 DTS dist/index.d.ts          27.05 KB
 DTS dist/tools.d.ts          162.00 B
 DTS dist/tools-DnTcE91c.d.ts 114.20 KB
