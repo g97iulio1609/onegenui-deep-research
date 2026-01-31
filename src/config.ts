@@ -178,20 +178,20 @@ export const JS_REQUIRED_DOMAINS: readonly string[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ScrapingConfigSchema = z.object({
-  maxConcurrent: z.number().min(1).max(20),
+  maxConcurrent: z.number().min(1).max(30),
   timeoutMs: z.number().min(5000).max(60000),
   maxContentLength: z.number().min(1000).max(500000),
   cacheTtlMs: z.number().min(60000).max(3600000),
-  maxPerDomain: z.number().min(1).max(10),
+  maxPerDomain: z.number().min(1).max(15),
 });
 export type ScrapingConfig = z.infer<typeof ScrapingConfigSchema>;
 
 export const DEFAULT_SCRAPING_CONFIG: ScrapingConfig = {
-  maxConcurrent: 5,
-  timeoutMs: 15000,
-  maxContentLength: 100000,
+  maxConcurrent: 15,
+  timeoutMs: 20000,
+  maxContentLength: 150000,
   cacheTtlMs: 1800000, // 30 min
-  maxPerDomain: 3,
+  maxPerDomain: 5,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ export const DEFAULT_SCRAPING_CONFIG: ScrapingConfig = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SearchConfigSchema = z.object({
-  maxResultsPerQuery: z.number().min(5).max(50),
+  maxResultsPerQuery: z.number().min(5).max(100),
   cacheTtlMs: z.number().min(60000).max(600000),
   retryAttempts: z.number().min(1).max(5),
   retryDelayMs: z.number().min(500).max(5000),
@@ -207,7 +207,7 @@ export const SearchConfigSchema = z.object({
 export type SearchConfig = z.infer<typeof SearchConfigSchema>;
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
-  maxResultsPerQuery: 20,
+  maxResultsPerQuery: 30,
   cacheTtlMs: 300000, // 5 min
   retryAttempts: 3,
   retryDelayMs: 1000,

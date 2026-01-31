@@ -13,3 +13,4 @@ export * from "./auth-manager.adapter.js";
 export * from "./academic-search.adapter.js";
 export * from "./news-search.adapter.js";
 export * from "./ai-sdk-llm.adapter.js";
+export * from "./vectorless-kb.adapter.js";

@@ -18,6 +18,8 @@ export interface DeepResearchOptions {
   customConfig?: Partial<EffortConfig>;
   context?: string;
   abortSignal?: AbortSignal;
+  /** Enable vectorless knowledge base integration for comprehensive reports */
+  useVectorless?: boolean;
 }
 
 export class DeepResearchUseCase {
@@ -36,6 +38,7 @@ export class DeepResearchUseCase {
     const orchestrator = new ResearchOrchestrator(this.ports, {
       effort: effortConfig,
       abortSignal: options.abortSignal,
+      useVectorless: options.useVectorless ?? true, // Enabled by default
     });
 
     return yield* orchestrator.execute(query, options.context);

@@ -213,7 +213,7 @@ Return a JSON array of entities with: name, type, description (optional).`;
     const prompt = `Given these entities: ${entityNames}
 
 Find relationships between them in this content:
-${content.slice(0, 8000)}
+${content.slice(0, 50000)}
 
 Return a JSON array of relationships with:
 - sourceEntity: name of source entity
