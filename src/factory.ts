@@ -2,48 +2,104 @@
  * Deep Research Factory - creates configured deep research instance
  * KISS: single factory function for complete setup
  */
-import type { LanguageModelV1 } from "ai";
-import { DeepResearchUseCase } from "./use-cases/deep-research.use-case.js";
-import { AiSdkLlmAdapter } from "./adapters/ai-sdk-llm.adapter.js";
-import { DeepSearchAdapter } from "./adapters/deep-search.adapter.js";
-import { LightweightScraperAdapter } from "./adapters/lightweight-scraper.adapter.js";
-import { ContentAnalyzerAdapter } from "./adapters/content-analyzer.adapter.js";
-import { SourceRankerAdapter } from "./adapters/source-ranker.adapter.js";
-import { KnowledgeGraphAdapter } from "./adapters/knowledge-graph.adapter.js";
-import { SynthesizerAdapter } from "./adapters/synthesizer.adapter.js";
-import type { OrchestratorPorts } from "./use-cases/orchestrator.js";
+import type { LanguageModel } from "ai";
+import type { ResearchEvent } from "./domain/events.schema.js";
+import type { EffortLevel } from "./domain/effort-level.schema.js";
+import { createDeepResearchAgent, type DeepResearchAgentResult } from "./agent/deep-research-agent.js";
 
 export interface DeepResearchFactoryOptions {
-  model: LanguageModelV1;
-  embeddingModel?: Parameters<typeof import("ai").embed>[0]["model"];
+  model: LanguageModel;
+  maxTokens?: number;
+}
+
+export interface DeepResearchOptions {
+  effort: EffortLevel;
+  context?: string;
+  abortSignal?: AbortSignal;
+  onProgress?: (event: ResearchEvent) => void;
+}
+
+export interface DeepResearchInstance {
+  /**
+   * Execute research and return result directly (recommended)
+   */
+  researchAsync(query: string, options: DeepResearchOptions): Promise<DeepResearchAgentResult>;
+  
+  /**
+   * Execute research with streaming events (legacy generator API)
+   */
+  research(query: string, options: DeepResearchOptions): AsyncGenerator<ResearchEvent, DeepResearchAgentResult, unknown>;
 }
 
 /**
- * Create a fully configured DeepResearchUseCase instance
- * Reuses AI SDK model for all LLM operations
+ * Create a fully configured DeepResearch instance
+ * Uses ToolLoopAgent for agentic research workflow
  */
 export function createDeepResearch(
-  options: DeepResearchFactoryOptions,
-): DeepResearchUseCase {
-  const llmAdapter = new AiSdkLlmAdapter({
-    model: options.model,
-    embeddingModel: options.embeddingModel,
-  });
+  factoryOptions: DeepResearchFactoryOptions,
+): DeepResearchInstance {
+  const { model, maxTokens } = factoryOptions;
 
-  const ports: OrchestratorPorts = {
-    search: new DeepSearchAdapter({ maxConcurrency: 10 }),
-    scraper: new LightweightScraperAdapter(),
-    analyzer: new ContentAnalyzerAdapter(llmAdapter),
-    ranker: new SourceRankerAdapter(),
-    graph: new KnowledgeGraphAdapter(),
-    synthesizer: new SynthesizerAdapter(llmAdapter),
-    llm: llmAdapter,
+  return {
+    async researchAsync(query: string, options: DeepResearchOptions): Promise<DeepResearchAgentResult> {
+      const agent = createDeepResearchAgent({
+        model,
+        effort: options.effort,
+        abortSignal: options.abortSignal,
+        onProgress: options.onProgress,
+        maxTokens,
+      });
+      
+      return agent.research(query, options.context);
+    },
+
+    async *research(query: string, options: DeepResearchOptions): AsyncGenerator<ResearchEvent, DeepResearchAgentResult, unknown> {
+      const events: ResearchEvent[] = [];
+      
+      const agent = createDeepResearchAgent({
+        model,
+        effort: options.effort,
+        abortSignal: options.abortSignal,
+        maxTokens,
+        onProgress: (event) => {
+          events.push(event);
+        },
+      });
+
+      // Start research in background and yield events
+      const resultPromise = agent.research(query, options.context);
+      
+      // Yield initial event
+      yield {
+        type: "phase-started",
+        timestamp: new Date(),
+        researchId: "agent",
+        phase: "decomposing",
+        message: "Initializing research agent...",
+      };
+
+      // Wait for result while yielding collected events
+      const result = await resultPromise;
+      
+      // Yield all collected events
+      for (const event of events) {
+        yield event;
+      }
+
+      // Yield completion
+      yield {
+        type: "completed",
+        timestamp: new Date(),
+        researchId: "agent",
+        totalDurationMs: result.stats.durationMs,
+        finalQuality: result.quality,
+      };
+
+      return result;
+    },
   };
-
-  return new DeepResearchUseCase(ports);
 }
 
-export {
-  DeepResearchUseCase,
-  type DeepResearchOptions,
-} from "./use-cases/deep-research.use-case.js";
+// Re-export types
+export type { DeepResearchAgentResult } from "./agent/deep-research-agent.js";
+export { EFFORT_PRESETS, type EffortLevel, type EffortConfig } from "./domain/effort-level.schema.js";

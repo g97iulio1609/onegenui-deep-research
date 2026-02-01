@@ -1,14 +1,14 @@
 /**
- * AI SDK LLM Adapter - bridges deep-research to Vercel AI SDK
- * Follows KISS principle: reuses existing generateObject/generateText
+ * AI SDK LLM Adapter - bridges deep-research to Vercel AI SDK 6
+ * Uses generateText with Output.object() for structured data
  */
-import { generateObject, generateText, embed } from "ai";
-import type { LanguageModelV1 } from "ai";
+import { generateText, embed, Output } from "ai";
+import type { LanguageModel } from "ai";
 import { z } from "zod";
 import type { LLMPort, LLMOptions, LLMResponse } from "../ports/llm.port.js";
 
 export interface AiSdkLlmAdapterOptions {
-  model: LanguageModelV1;
+  model: LanguageModel;
   embeddingModel?: Parameters<typeof embed>[0]["model"];
 }
 
@@ -20,19 +20,20 @@ export class AiSdkLlmAdapter implements LLMPort {
     schema: z.ZodType<T>,
     options?: LLMOptions,
   ): Promise<LLMResponse<T>> {
-    const result = await generateObject({
+    // AI SDK 6: Use generateText with Output.object() instead of generateObject
+    const result = await generateText({
       model: this.options.model,
-      schema,
+      output: Output.object({ schema }),
       prompt,
       temperature: options?.temperature,
-      maxTokens: options?.maxTokens,
+      maxOutputTokens: options?.maxTokens,
     });
 
     return {
-      data: result.object,
+      data: result.output as T,
       usage: {
-        promptTokens: result.usage?.promptTokens ?? 0,
-        completionTokens: result.usage?.completionTokens ?? 0,
+        promptTokens: result.usage?.inputTokens ?? 0,
+        completionTokens: result.usage?.outputTokens ?? 0,
         totalTokens: result.usage?.totalTokens ?? 0,
       },
     };
@@ -43,7 +44,7 @@ export class AiSdkLlmAdapter implements LLMPort {
       model: this.options.model,
       prompt,
       temperature: options?.temperature,
-      maxTokens: options?.maxTokens,
+      maxOutputTokens: options?.maxTokens,
     });
 
     return result.text;

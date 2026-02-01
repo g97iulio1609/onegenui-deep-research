@@ -6,7 +6,7 @@ import {
   QueryDecomposer,
   ResearchOrchestrator,
   createDeepResearchTools
-} from "./chunk-CEAX4PIX.js";
+} from "./chunk-WF54U24F.js";
 
 // src/config.ts
 import { z } from "zod";
@@ -124,28 +124,28 @@ var JS_REQUIRED_DOMAINS = [
   "reddit.com"
 ];
 var ScrapingConfigSchema = z.object({
-  maxConcurrent: z.number().min(1).max(20),
+  maxConcurrent: z.number().min(1).max(30),
   timeoutMs: z.number().min(5e3).max(6e4),
   maxContentLength: z.number().min(1e3).max(5e5),
   cacheTtlMs: z.number().min(6e4).max(36e5),
-  maxPerDomain: z.number().min(1).max(10)
+  maxPerDomain: z.number().min(1).max(15)
 });
 var DEFAULT_SCRAPING_CONFIG = {
-  maxConcurrent: 5,
-  timeoutMs: 15e3,
-  maxContentLength: 1e5,
+  maxConcurrent: 15,
+  timeoutMs: 2e4,
+  maxContentLength: 15e4,
   cacheTtlMs: 18e5,
   // 30 min
-  maxPerDomain: 3
+  maxPerDomain: 5
 };
 var SearchConfigSchema = z.object({
-  maxResultsPerQuery: z.number().min(5).max(50),
+  maxResultsPerQuery: z.number().min(5).max(100),
   cacheTtlMs: z.number().min(6e4).max(6e5),
   retryAttempts: z.number().min(1).max(5),
   retryDelayMs: z.number().min(500).max(5e3)
 });
 var DEFAULT_SEARCH_CONFIG = {
-  maxResultsPerQuery: 20,
+  maxResultsPerQuery: 30,
   cacheTtlMs: 3e5,
   // 5 min
   retryAttempts: 3,
@@ -1485,7 +1485,7 @@ Return a JSON array of entities with: name, type, description (optional).`;
     const prompt = `Given these entities: ${entityNames}
 
 Find relationships between them in this content:
-${content.slice(0, 8e3)}
+${content.slice(0, 5e4)}
 
 Return a JSON array of relationships with:
 - sourceEntity: name of source entity
@@ -2724,24 +2724,24 @@ var NewsSearchAdapter = class {
 };
 
 // src/adapters/ai-sdk-llm.adapter.ts
-import { generateObject, generateText, embed } from "ai";
+import { generateText, embed, Output } from "ai";
 var AiSdkLlmAdapter = class {
   constructor(options) {
     this.options = options;
   }
   async generate(prompt, schema, options) {
-    const result = await generateObject({
+    const result = await generateText({
       model: this.options.model,
-      schema,
+      output: Output.object({ schema }),
       prompt,
       temperature: options?.temperature,
-      maxTokens: options?.maxTokens
+      maxOutputTokens: options?.maxTokens
     });
     return {
-      data: result.object,
+      data: result.output,
       usage: {
-        promptTokens: result.usage?.promptTokens ?? 0,
-        completionTokens: result.usage?.completionTokens ?? 0,
+        promptTokens: result.usage?.inputTokens ?? 0,
+        completionTokens: result.usage?.outputTokens ?? 0,
         totalTokens: result.usage?.totalTokens ?? 0
       }
     };
@@ -2751,7 +2751,7 @@ var AiSdkLlmAdapter = class {
       model: this.options.model,
       prompt,
       temperature: options?.temperature,
-      maxTokens: options?.maxTokens
+      maxOutputTokens: options?.maxTokens
     });
     return result.text;
   }
@@ -2788,22 +2788,482 @@ var AiSdkLlmAdapter = class {
   }
 };
 
-// src/factory.ts
-function createDeepResearch(options) {
-  const llmAdapter = new AiSdkLlmAdapter({
-    model: options.model,
-    embeddingModel: options.embeddingModel
-  });
-  const ports = {
-    search: new DeepSearchAdapter({ maxConcurrency: 10 }),
-    scraper: new LightweightScraperAdapter(),
-    analyzer: new ContentAnalyzerAdapter(llmAdapter),
-    ranker: new SourceRankerAdapter(),
-    graph: new KnowledgeGraphAdapter(),
-    synthesizer: new SynthesizerAdapter(llmAdapter),
-    llm: llmAdapter
+// src/adapters/vectorless-kb.adapter.ts
+var VectorlessKnowledgeBaseAdapter = class {
+  constructor(llm, options) {
+    this.llm = llm;
+    this.enabled = options?.enabled ?? true;
+  }
+  chunks = /* @__PURE__ */ new Map();
+  documents = /* @__PURE__ */ new Map();
+  enabled;
+  isEnabled() {
+    return this.enabled;
+  }
+  async indexDocuments(documents, options) {
+    if (!this.enabled) return { indexed: 0, failed: 0 };
+    const maxTokensPerNode = options?.maxTokensPerNode ?? 2e3;
+    let indexed = 0;
+    let failed = 0;
+    for (const doc of documents) {
+      try {
+        this.documents.set(doc.id, doc);
+        const chunks = this.chunkContent(doc.content, maxTokensPerNode);
+        const storedChunks = chunks.map((chunk, i) => ({
+          documentId: doc.id,
+          chunk,
+          metadata: {
+            ...doc.metadata,
+            chunkIndex: i,
+            url: doc.url,
+            title: doc.title
+          }
+        }));
+        this.chunks.set(doc.id, storedChunks);
+        indexed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { indexed, failed };
+  }
+  async query(query, options) {
+    if (!this.enabled) return [];
+    const topK = options?.topK ?? 10;
+    const minScore = options?.minScore ?? 0.3;
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
+    const results = [];
+    for (const [docId, chunks] of this.chunks) {
+      for (const chunk of chunks) {
+        const score = this.calculateRelevance(chunk.chunk, queryTerms);
+        if (score >= minScore) {
+          results.push({
+            documentId: docId,
+            chunk: chunk.chunk,
+            score,
+            metadata: chunk.metadata
+          });
+        }
+      }
+    }
+    return results.sort((a, b) => b.score - a.score).slice(0, topK);
+  }
+  async *generateReport(query, context) {
+    const relevantChunks = await this.query(query, { topK: 20, minScore: 0.2 });
+    const knowledgeContext = relevantChunks.map((r) => `[Source: ${r.metadata.title ?? "Unknown"}]
+${r.chunk}`).join("\n\n---\n\n");
+    const findingsText = context.findings.slice(0, 15).join("\n- ");
+    const sourcesText = context.sources.slice(0, 20).map((s) => `- ${s.title}: ${s.url}`).join("\n");
+    const prompt = `You are a research analyst writing a comprehensive, detailed report.
+
+RESEARCH QUERY: ${query}
+
+MAIN TOPICS: ${context.topics.join(", ")}
+
+KEY FINDINGS:
+- ${findingsText}
+
+KNOWLEDGE BASE CONTENT:
+${knowledgeContext}
+
+SOURCES:
+${sourcesText}
+
+Write a comprehensive, well-structured research report that:
+1. Has an executive summary
+2. Covers all main topics in depth with multiple sections
+3. Includes specific data, statistics, and quotes from sources
+4. Provides analysis and insights
+5. Has a conclusion with key takeaways
+6. Uses proper citations [Source Name]
+
+The report should be detailed, professional, and at least 2000 words.
+Use markdown formatting with headers, bullet points, and emphasis.`;
+    let fullContent = "";
+    for await (const chunk of this.llm.streamText(prompt, {
+      maxTokens: 16e3,
+      temperature: 0.7
+    })) {
+      fullContent += chunk;
+      yield { type: "chunk", content: chunk };
+    }
+    yield { type: "complete", content: fullContent };
+  }
+  async clear(sessionId) {
+    this.chunks.clear();
+    this.documents.clear();
+  }
+  chunkContent(content, maxTokens) {
+    const chunks = [];
+    const charsPerToken = 4;
+    const maxChars = maxTokens * charsPerToken;
+    const paragraphs = content.split(/\n\n+/);
+    let currentChunk = "";
+    for (const para of paragraphs) {
+      if ((currentChunk + para).length > maxChars) {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim());
+        }
+        if (para.length > maxChars) {
+          const sentences = para.split(/(?<=[.!?])\s+/);
+          currentChunk = "";
+          for (const sentence of sentences) {
+            if ((currentChunk + sentence).length > maxChars) {
+              if (currentChunk) chunks.push(currentChunk.trim());
+              currentChunk = sentence + " ";
+            } else {
+              currentChunk += sentence + " ";
+            }
+          }
+        } else {
+          currentChunk = para + "\n\n";
+        }
+      } else {
+        currentChunk += para + "\n\n";
+      }
+    }
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    return chunks;
+  }
+  calculateRelevance(text, queryTerms) {
+    const textLower = text.toLowerCase();
+    let matches = 0;
+    let totalWeight = 0;
+    for (const term of queryTerms) {
+      const weight = term.length > 5 ? 2 : 1;
+      if (textLower.includes(term)) {
+        matches += weight;
+      }
+      totalWeight += weight;
+    }
+    const lengthBonus = Math.min(text.length / 1e3, 0.2);
+    return totalWeight > 0 ? matches / totalWeight * 0.8 + lengthBonus : 0;
+  }
+};
+
+// src/agent/deep-research-agent.ts
+import { ToolLoopAgent, tool, stepCountIs } from "ai";
+import { z as z11 } from "zod";
+import { WebSearchUseCase, OneCrawlSearchAdapter, OneCrawlScraperAdapter } from "@onegenui/web-search";
+var DEFAULT_MAX_TOKENS = 65e3;
+var webSearchInstance = null;
+function getWebSearchUseCase() {
+  if (!webSearchInstance) {
+    webSearchInstance = new WebSearchUseCase(
+      [new OneCrawlSearchAdapter()],
+      [new OneCrawlScraperAdapter()],
+      { maxRetries: 2, initialDelay: 1e3, backoffMultiplier: 2, maxDelay: 5e3 }
+    );
+  }
+  return webSearchInstance;
+}
+function createDeepResearchAgent(options) {
+  const { model, effort, onProgress, maxTokens = DEFAULT_MAX_TOKENS } = options;
+  const effortConfig = EFFORT_PRESETS[effort];
+  const webSearch = getWebSearchUseCase();
+  const state = {
+    sources: /* @__PURE__ */ new Map(),
+    scrapedContent: /* @__PURE__ */ new Map(),
+    findings: [],
+    startTime: Date.now()
   };
-  return new DeepResearchUseCase(ports);
+  const researchTools = {
+    webSearch: tool({
+      description: "Search the web for information on a specific query. Returns URLs and snippets.",
+      inputSchema: z11.object({
+        query: z11.string().describe("The search query"),
+        searchType: z11.enum(["web", "news"]).default("web")
+      }),
+      execute: async ({ query, searchType }) => {
+        onProgress?.({
+          type: "phase-started",
+          timestamp: /* @__PURE__ */ new Date(),
+          researchId: "agent",
+          phase: "searching",
+          message: `Searching: ${query}`
+        });
+        try {
+          const response = await webSearch.search(query, {
+            maxResults: Math.min(10, Math.ceil(effortConfig.maxSources / 3)),
+            searchType,
+            timeout: 45e3,
+            cache: true
+          });
+          const results = response.results.results || [];
+          for (const result of results) {
+            if (result.url && !state.sources.has(result.url)) {
+              const urlObj = new URL(result.url);
+              state.sources.set(result.url, {
+                url: result.url,
+                title: result.title || urlObj.hostname,
+                domain: urlObj.hostname.replace("www.", ""),
+                snippet: result.snippet
+              });
+            }
+          }
+          return {
+            found: results.length,
+            sources: results.slice(0, 8).map((r) => ({
+              title: r.title,
+              url: r.url,
+              snippet: r.snippet
+            }))
+          };
+        } catch (error) {
+          return {
+            found: 0,
+            sources: [],
+            error: error instanceof Error ? error.message : "Search failed"
+          };
+        }
+      }
+    }),
+    scrapeContent: tool({
+      description: "Extract content from a URL. Use after finding relevant sources.",
+      inputSchema: z11.object({
+        url: z11.string().url().describe("The URL to scrape")
+      }),
+      execute: async ({ url }) => {
+        onProgress?.({
+          type: "progress-update",
+          timestamp: /* @__PURE__ */ new Date(),
+          researchId: "agent",
+          progress: state.scrapedContent.size / effortConfig.maxSources,
+          message: `Extracting: ${new URL(url).hostname}`,
+          stats: {
+            sourcesFound: state.sources.size,
+            sourcesProcessed: state.scrapedContent.size,
+            stepsCompleted: 0,
+            totalSteps: 0
+          }
+        });
+        try {
+          const response = await webSearch.scrape(url, {
+            timeout: 2e4,
+            maxContentLength: 25e3,
+            cache: true
+          });
+          const content = response.result.content;
+          if (content) {
+            state.scrapedContent.set(url, content);
+            return {
+              success: true,
+              title: response.result.title,
+              wordCount: content.split(/\s+/).length,
+              excerpt: content.slice(0, 1e3)
+            };
+          }
+          return { success: false, error: "No content extracted" };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Scrape failed"
+          };
+        }
+      }
+    }),
+    recordFinding: tool({
+      description: "Record an important finding from the research. Use when you discover key information.",
+      inputSchema: z11.object({
+        finding: z11.string().describe("The key finding or insight"),
+        source: z11.string().optional().describe("The source URL this finding came from")
+      }),
+      execute: async ({ finding, source }) => {
+        state.findings.push(finding);
+        onProgress?.({
+          type: "finding-discovered",
+          timestamp: /* @__PURE__ */ new Date(),
+          researchId: "agent",
+          finding,
+          confidence: "medium",
+          sourceIds: source ? [source] : []
+        });
+        return { recorded: true, totalFindings: state.findings.length };
+      }
+    }),
+    getResearchStatus: tool({
+      description: "Get the current status of the research. Use to check progress.",
+      inputSchema: z11.object({}),
+      execute: async () => ({
+        sourcesFound: state.sources.size,
+        sourcesScraped: state.scrapedContent.size,
+        findingsRecorded: state.findings.length,
+        targetSources: effortConfig.maxSources,
+        elapsedMs: Date.now() - state.startTime
+      })
+    })
+  };
+  const agent = new ToolLoopAgent({
+    model,
+    instructions: buildInstructions(effort, effortConfig),
+    tools: researchTools,
+    stopWhen: stepCountIs(effortConfig.maxSteps),
+    maxOutputTokens: maxTokens,
+    prepareStep: async ({ stepNumber }) => {
+      if (stepNumber <= 3) {
+        return {
+          activeTools: ["webSearch", "getResearchStatus"],
+          toolChoice: { type: "tool", toolName: "webSearch" }
+          // Force search initially
+        };
+      }
+      return {
+        activeTools: ["webSearch", "scrapeContent", "recordFinding", "getResearchStatus"]
+      };
+    },
+    onStepFinish: (step) => {
+      const stepCount = state.stepCount ?? 0;
+      state.stepCount = stepCount + 1;
+      onProgress?.({
+        type: "progress-update",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        progress: Math.min(0.95, stepCount / effortConfig.maxSteps),
+        message: `Step ${stepCount + 1} complete`,
+        stats: {
+          sourcesFound: state.sources.size,
+          sourcesProcessed: state.scrapedContent.size,
+          stepsCompleted: stepCount + 1,
+          totalSteps: effortConfig.maxSteps
+        }
+      });
+    }
+  });
+  return {
+    agent,
+    state,
+    async research(query, context) {
+      const prompt = context ? `Research query: ${query}
+
+Additional context: ${context}` : `Research query: ${query}`;
+      onProgress?.({
+        type: "phase-started",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        phase: "decomposing",
+        message: "Starting research..."
+      });
+      const result = await agent.generate({ prompt });
+      onProgress?.({
+        type: "completed",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        totalDurationMs: Date.now() - state.startTime,
+        finalQuality: state.findings.length > 0 ? 0.8 : 0.5
+      });
+      return {
+        synthesis: result.text,
+        sources: Array.from(state.sources.values()),
+        stats: {
+          totalSources: state.sources.size,
+          sourcesProcessed: state.scrapedContent.size,
+          durationMs: Date.now() - state.startTime
+        },
+        quality: Math.min(1, state.findings.length / 10)
+      };
+    }
+  };
+}
+function buildInstructions(effort, config) {
+  return `You are a DEEP RESEARCH agent. Your mission is to conduct EXHAUSTIVE research on the given query.
+
+## EFFORT LEVEL: ${effort.toUpperCase()}
+- **MINIMUM sources to find**: ${config.maxSources}
+- **MINIMUM sources to scrape**: ${Math.ceil(config.maxSources * 0.5)}
+- **Target steps**: ${config.maxSteps}
+
+## MANDATORY RESEARCH PHASES
+
+### PHASE 1: BROAD SEARCH (steps 1-5)
+You MUST perform at least 5 different web searches with varied queries:
+- Original query in different phrasings
+- Related academic/technical terms
+- Different languages if relevant
+- News and current events angle
+
+### PHASE 2: DEEP EXTRACTION (steps 6-${Math.ceil(config.maxSteps * 0.7)})
+You MUST scrape content from AT LEAST ${Math.ceil(config.maxSources * 0.5)} of the found sources.
+- Use scrapeContent on EVERY promising URL
+- Extract and analyze the actual content
+- Do NOT skip this phase - web snippets are not enough
+
+### PHASE 3: ANALYSIS (ongoing)
+For EACH scraped source, use recordFinding to log:
+- Key facts and statistics
+- Expert opinions
+- Contradictions between sources
+- Unique insights
+
+### PHASE 4: SYNTHESIS (final - CRITICAL)
+After ALL research is complete, write a COMPREHENSIVE synthesis that:
+- Is AT LEAST 2000-3000 words long
+- Includes multiple sections with headers
+- Cites sources inline using [source domain] format
+- Covers ALL angles: historical, current state, different perspectives
+- Includes comparisons, contrasts, and nuanced analysis
+- Draws conclusions based on the evidence
+
+## CRITICAL RULES
+1. DO NOT finish early - use all available steps
+2. DO NOT rely only on search snippets - SCRAPE the actual pages
+3. DO NOT skip scrapeContent - it's essential for deep research
+4. Check getResearchStatus regularly to track progress
+5. If sourcesScraped < ${Math.ceil(config.maxSources * 0.3)}, keep scraping more URLs
+6. Your final synthesis MUST be comprehensive and cite multiple sources
+
+Your research quality depends on ACTUALLY READING the sources and writing a DETAILED synthesis.`;
+}
+
+// src/factory.ts
+function createDeepResearch(factoryOptions) {
+  const { model, maxTokens } = factoryOptions;
+  return {
+    async researchAsync(query, options) {
+      const agent = createDeepResearchAgent({
+        model,
+        effort: options.effort,
+        abortSignal: options.abortSignal,
+        onProgress: options.onProgress,
+        maxTokens
+      });
+      return agent.research(query, options.context);
+    },
+    async *research(query, options) {
+      const events = [];
+      const agent = createDeepResearchAgent({
+        model,
+        effort: options.effort,
+        abortSignal: options.abortSignal,
+        maxTokens,
+        onProgress: (event) => {
+          events.push(event);
+        }
+      });
+      const resultPromise = agent.research(query, options.context);
+      yield {
+        type: "phase-started",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        phase: "decomposing",
+        message: "Initializing research agent..."
+      };
+      const result = await resultPromise;
+      for (const event of events) {
+        yield event;
+      }
+      yield {
+        type: "completed",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        totalDurationMs: result.stats.durationMs,
+        finalQuality: result.quality
+      };
+      return result;
+    }
+  };
 }
 export {
   AcademicSearchAdapter,
@@ -2886,7 +3346,9 @@ export {
   SynthesisSchema,
   SynthesizerAdapter,
   TimelineEventSchema,
+  VectorlessKnowledgeBaseAdapter,
   createDeepResearch,
+  createDeepResearchAgent,
   createDeepResearchTools,
   getAuthManager,
   getDomainCredibility,

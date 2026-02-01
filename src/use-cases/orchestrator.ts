@@ -83,8 +83,11 @@ export class ResearchOrchestrator {
     this.state = this.initState();
     const { researchId } = this.state;
 
+    console.log("[DeepResearch] execute() started", { researchId, queryLength: queryText.length });
+
     try {
       // Phase 1: Query Decomposition
+      console.log("[DeepResearch] Phase 1: Decomposing query");
       yield this.phaseStarted(
         "decomposing",
         "Decomposing query into sub-queries",
@@ -94,6 +97,7 @@ export class ResearchOrchestrator {
         this.config.effort,
         context,
       );
+      console.log("[DeepResearch] Query decomposed", { subQueries: query.subQueries.length });
       this.state.query = query;
       this.state.totalSteps = this.calculateTotalSteps(query);
       yield this.phaseCompleted("decomposing");
@@ -216,6 +220,7 @@ export class ResearchOrchestrator {
         completedAt: new Date(),
       };
     } catch (error) {
+      console.error("[DeepResearch] Error in execute():", error);
       yield {
         type: "error",
         timestamp: new Date(),

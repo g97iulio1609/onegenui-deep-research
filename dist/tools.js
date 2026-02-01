@@ -1,7 +1,7 @@
 import {
   DeepResearchInputSchema,
   createDeepResearchTools
-} from "./chunk-CEAX4PIX.js";
+} from "./chunk-WF54U24F.js";
 export {
   DeepResearchInputSchema,
   createDeepResearchTools
