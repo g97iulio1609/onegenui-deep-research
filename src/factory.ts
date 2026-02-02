@@ -26,7 +26,7 @@ export interface DeepResearchInstance {
   researchAsync(query: string, options: DeepResearchOptions): Promise<DeepResearchAgentResult>;
   
   /**
-   * Execute research with streaming events (legacy generator API)
+   * Execute research with streaming events (generator API)
    */
   research(query: string, options: DeepResearchOptions): AsyncGenerator<ResearchEvent, DeepResearchAgentResult, unknown>;
 }

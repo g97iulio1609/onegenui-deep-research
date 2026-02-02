@@ -17,7 +17,7 @@ export * from "./ports/index.js";
 // Adapters (implementations)
 export * from "./adapters/index.js";
 
-// Use cases (legacy)
+// Use cases
 export * from "./use-cases/index.js";
 
 // Agent (new ToolLoopAgent-based implementation)
