@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, V as VectorlessKnowledgeBasePort, F as VectorlessDocument, H as VectorlessIndexOptions, I as VectorlessQueryOptions, J as VectorlessQueryResult, N as OrchestratorPorts, P as ResearchEvent, Q as ResearchResult } from './tools-Os-MXEVl.js';
-export { aw as BaseEventSchema, as as ChartConfig, ar as ChartConfigSchema, ag as CitationSchema, aN as Claim, aH as CompletedEventSchema, aj as ConflictSchema, aO as ContentQuality, aQ as DEFAULT_GRAPH_OPTIONS, aP as DEFAULT_RANKING_WEIGHTS, aR as DEFAULT_SYNTHESIS_OPTIONS, W as EFFORT_PRESETS, X as EffortConfigSchema, U as EffortLevelSchema, a8 as EntitySchema, a7 as EntityType, a6 as EntityTypeSchema, aG as ErrorEventSchema, aD as FindingDiscoveredEventSchema, ai as KeyFindingSchema, ac as KnowledgeGraphSchema, $ as MediaItem, _ as MediaItemSchema, ad as MindMapNode, ae as MindMapNodeSchema, af as MindMapSchema, aT as OrchestratorConfig, ay as PhaseCompletedEventSchema, aJ as PhaseStartedEvent, ax as PhaseStartedEventSchema, aL as ProgressUpdateEvent, aE as ProgressUpdateEventSchema, aM as QualityCheckEvent, aF as QualityCheckEventSchema, aq as QualityScore, ap as QualityScoreSchema, a1 as RankedSourceSchema, ab as RelationshipSchema, aa as RelationshipType, a9 as RelationshipTypeSchema, aI as ResearchEventSchema, aS as ResearchOrchestrator, a5 as ResearchQuerySchema, av as ResearchResultSchema, ao as ResearchStats, an as ResearchStatsSchema, am as ResearchStatus, al as ResearchStatusSchema, a3 as SearchStrategy, a2 as SearchStrategySchema, ah as SectionSchema, aC as SourceExtractedEventSchema, aB as SourceFoundEventSchema, a0 as SourceSchema, Z as SourceType, Y as SourceTypeSchema, aA as StepCompletedEventSchema, aK as StepStartedEvent, az as StepStartedEventSchema, a4 as SubQuerySchema, ak as SynthesisSchema, au as TimelineEvent, at as TimelineEventSchema, T as createDeepResearchTools } from './tools-Os-MXEVl.js';
+import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, V as VectorlessKnowledgeBasePort, F as VectorlessDocument, H as VectorlessIndexOptions, I as VectorlessQueryOptions, J as VectorlessQueryResult, N as OrchestratorPorts, P as ResearchEvent, Q as ResearchResult } from './tools-Jezl3_OW.js';
+export { aw as BaseEventSchema, as as ChartConfig, ar as ChartConfigSchema, ag as CitationSchema, aN as Claim, aH as CompletedEventSchema, aj as ConflictSchema, aO as ContentQuality, aQ as DEFAULT_GRAPH_OPTIONS, aP as DEFAULT_RANKING_WEIGHTS, aR as DEFAULT_SYNTHESIS_OPTIONS, W as EFFORT_PRESETS, X as EffortConfigSchema, U as EffortLevelSchema, a8 as EntitySchema, a7 as EntityType, a6 as EntityTypeSchema, aG as ErrorEventSchema, aD as FindingDiscoveredEventSchema, ai as KeyFindingSchema, ac as KnowledgeGraphSchema, $ as MediaItem, _ as MediaItemSchema, ad as MindMapNode, ae as MindMapNodeSchema, af as MindMapSchema, aT as OrchestratorConfig, ay as PhaseCompletedEventSchema, aJ as PhaseStartedEvent, ax as PhaseStartedEventSchema, aL as ProgressUpdateEvent, aE as ProgressUpdateEventSchema, aM as QualityCheckEvent, aF as QualityCheckEventSchema, aq as QualityScore, ap as QualityScoreSchema, a1 as RankedSourceSchema, ab as RelationshipSchema, aa as RelationshipType, a9 as RelationshipTypeSchema, aI as ResearchEventSchema, aS as ResearchOrchestrator, a5 as ResearchQuerySchema, av as ResearchResultSchema, ao as ResearchStats, an as ResearchStatsSchema, am as ResearchStatus, al as ResearchStatusSchema, a3 as SearchStrategy, a2 as SearchStrategySchema, ah as SectionSchema, aC as SourceExtractedEventSchema, aB as SourceFoundEventSchema, a0 as SourceSchema, Z as SourceType, Y as SourceTypeSchema, aA as StepCompletedEventSchema, aK as StepStartedEvent, az as StepStartedEventSchema, a4 as SubQuerySchema, ak as SynthesisSchema, au as TimelineEvent, at as TimelineEventSchema, T as createDeepResearchTools } from './tools-Jezl3_OW.js';
 import * as ai from 'ai';
 import { LanguageModel, embed, ToolLoopAgent } from 'ai';
 
@@ -11,7 +11,14 @@ import { LanguageModel, embed, ToolLoopAgent } from 'ai';
  * and enable future configuration from external sources.
  */
 
-declare const ResearchPhaseSchema: z.ZodEnum<["query-decomposition", "source-discovery", "content-extraction", "analysis", "synthesis", "visualization"]>;
+declare const ResearchPhaseSchema: z.ZodEnum<{
+    synthesis: "synthesis";
+    "query-decomposition": "query-decomposition";
+    "source-discovery": "source-discovery";
+    "content-extraction": "content-extraction";
+    analysis: "analysis";
+    visualization: "visualization";
+}>;
 type ResearchPhase = z.infer<typeof ResearchPhaseSchema>;
 interface PhaseConfig {
     id: ResearchPhase;
@@ -29,18 +36,16 @@ declare const QualityScoringWeightsSchema: z.ZodObject<{
     completeness: z.ZodNumber;
     depth: z.ZodNumber;
     diversity: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    completeness: number;
-    depth: number;
-    diversity: number;
-}, {
-    completeness: number;
-    depth: number;
-    diversity: number;
-}>;
+}, z.core.$strip>;
 type QualityScoringWeights = z.infer<typeof QualityScoringWeightsSchema>;
 declare const DEFAULT_SCORING_WEIGHTS: QualityScoringWeights;
-declare const CredibilityTierSchema: z.ZodEnum<["academic", "government", "major-news", "technical", "general"]>;
+declare const CredibilityTierSchema: z.ZodEnum<{
+    academic: "academic";
+    technical: "technical";
+    general: "general";
+    government: "government";
+    "major-news": "major-news";
+}>;
 type CredibilityTier = z.infer<typeof CredibilityTierSchema>;
 interface CredibilityConfig {
     domains: string[];
@@ -54,19 +59,7 @@ declare const ScrapingConfigSchema: z.ZodObject<{
     maxContentLength: z.ZodNumber;
     cacheTtlMs: z.ZodNumber;
     maxPerDomain: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    timeoutMs: number;
-    maxConcurrent: number;
-    maxContentLength: number;
-    cacheTtlMs: number;
-    maxPerDomain: number;
-}, {
-    timeoutMs: number;
-    maxConcurrent: number;
-    maxContentLength: number;
-    cacheTtlMs: number;
-    maxPerDomain: number;
-}>;
+}, z.core.$strip>;
 type ScrapingConfig = z.infer<typeof ScrapingConfigSchema>;
 declare const DEFAULT_SCRAPING_CONFIG: ScrapingConfig;
 declare const SearchConfigSchema: z.ZodObject<{
@@ -74,17 +67,7 @@ declare const SearchConfigSchema: z.ZodObject<{
     cacheTtlMs: z.ZodNumber;
     retryAttempts: z.ZodNumber;
     retryDelayMs: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    cacheTtlMs: number;
-    maxResultsPerQuery: number;
-    retryAttempts: number;
-    retryDelayMs: number;
-}, {
-    cacheTtlMs: number;
-    maxResultsPerQuery: number;
-    retryAttempts: number;
-    retryDelayMs: number;
-}>;
+}, z.core.$strip>;
 type SearchConfig = z.infer<typeof SearchConfigSchema>;
 declare const DEFAULT_SEARCH_CONFIG: SearchConfig;
 interface ResearchConfig {
@@ -114,35 +97,55 @@ declare function requiresJavaScript(domain: string): boolean;
  * Types for managing authenticated access to premium sources
  */
 
-declare const AuthMethodSchema: z.ZodEnum<["cookie", "oauth", "api_key", "browser_session"]>;
+declare const AuthMethodSchema: z.ZodEnum<{
+    cookie: "cookie";
+    oauth: "oauth";
+    api_key: "api_key";
+    browser_session: "browser_session";
+}>;
 type AuthMethod = z.infer<typeof AuthMethodSchema>;
-declare const PlatformSchema: z.ZodEnum<["google_scholar", "pubmed", "semantic_scholar", "arxiv", "twitter", "linkedin", "reddit", "bloomberg", "reuters", "medium", "substack", "custom"]>;
+declare const PlatformSchema: z.ZodEnum<{
+    custom: "custom";
+    medium: "medium";
+    google_scholar: "google_scholar";
+    pubmed: "pubmed";
+    semantic_scholar: "semantic_scholar";
+    arxiv: "arxiv";
+    twitter: "twitter";
+    linkedin: "linkedin";
+    reddit: "reddit";
+    bloomberg: "bloomberg";
+    reuters: "reuters";
+    substack: "substack";
+}>;
 type Platform = z.infer<typeof PlatformSchema>;
 declare const CredentialSchema: z.ZodObject<{
     id: z.ZodString;
-    platform: z.ZodEnum<["google_scholar", "pubmed", "semantic_scholar", "arxiv", "twitter", "linkedin", "reddit", "bloomberg", "reuters", "medium", "substack", "custom"]>;
-    method: z.ZodEnum<["cookie", "oauth", "api_key", "browser_session"]>;
+    platform: z.ZodEnum<{
+        custom: "custom";
+        medium: "medium";
+        google_scholar: "google_scholar";
+        pubmed: "pubmed";
+        semantic_scholar: "semantic_scholar";
+        arxiv: "arxiv";
+        twitter: "twitter";
+        linkedin: "linkedin";
+        reddit: "reddit";
+        bloomberg: "bloomberg";
+        reuters: "reuters";
+        substack: "substack";
+    }>;
+    method: z.ZodEnum<{
+        cookie: "cookie";
+        oauth: "oauth";
+        api_key: "api_key";
+        browser_session: "browser_session";
+    }>;
     label: z.ZodOptional<z.ZodString>;
     createdAt: z.ZodDate;
     expiresAt: z.ZodOptional<z.ZodDate>;
     isValid: z.ZodBoolean;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    createdAt: Date;
-    platform: "custom" | "medium" | "google_scholar" | "pubmed" | "semantic_scholar" | "arxiv" | "twitter" | "linkedin" | "reddit" | "bloomberg" | "reuters" | "substack";
-    method: "cookie" | "oauth" | "api_key" | "browser_session";
-    isValid: boolean;
-    label?: string | undefined;
-    expiresAt?: Date | undefined;
-}, {
-    id: string;
-    createdAt: Date;
-    platform: "custom" | "medium" | "google_scholar" | "pubmed" | "semantic_scholar" | "arxiv" | "twitter" | "linkedin" | "reddit" | "bloomberg" | "reuters" | "substack";
-    method: "cookie" | "oauth" | "api_key" | "browser_session";
-    isValid: boolean;
-    label?: string | undefined;
-    expiresAt?: Date | undefined;
-}>;
+}, z.core.$strip>;
 type Credential = z.infer<typeof CredentialSchema>;
 declare const CookieCredentialSchema: z.ZodObject<{
     domain: z.ZodString;
@@ -154,51 +157,13 @@ declare const CookieCredentialSchema: z.ZodObject<{
         expires: z.ZodOptional<z.ZodNumber>;
         httpOnly: z.ZodOptional<z.ZodBoolean>;
         secure: z.ZodOptional<z.ZodBoolean>;
-        sameSite: z.ZodOptional<z.ZodEnum<["Strict", "Lax", "None"]>>;
-    }, "strip", z.ZodTypeAny, {
-        value: string;
-        path: string;
-        domain: string;
-        name: string;
-        expires?: number | undefined;
-        httpOnly?: boolean | undefined;
-        secure?: boolean | undefined;
-        sameSite?: "Strict" | "Lax" | "None" | undefined;
-    }, {
-        value: string;
-        domain: string;
-        name: string;
-        path?: string | undefined;
-        expires?: number | undefined;
-        httpOnly?: boolean | undefined;
-        secure?: boolean | undefined;
-        sameSite?: "Strict" | "Lax" | "None" | undefined;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    domain: string;
-    cookies: {
-        value: string;
-        path: string;
-        domain: string;
-        name: string;
-        expires?: number | undefined;
-        httpOnly?: boolean | undefined;
-        secure?: boolean | undefined;
-        sameSite?: "Strict" | "Lax" | "None" | undefined;
-    }[];
-}, {
-    domain: string;
-    cookies: {
-        value: string;
-        domain: string;
-        name: string;
-        path?: string | undefined;
-        expires?: number | undefined;
-        httpOnly?: boolean | undefined;
-        secure?: boolean | undefined;
-        sameSite?: "Strict" | "Lax" | "None" | undefined;
-    }[];
-}>;
+        sameSite: z.ZodOptional<z.ZodEnum<{
+            Strict: "Strict";
+            Lax: "Lax";
+            None: "None";
+        }>>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 type CookieCredential = z.infer<typeof CookieCredentialSchema>;
 declare const OAuthTokenSchema: z.ZodObject<{
     accessToken: z.ZodString;
@@ -207,21 +172,7 @@ declare const OAuthTokenSchema: z.ZodObject<{
     expiresIn: z.ZodOptional<z.ZodNumber>;
     expiresAt: z.ZodOptional<z.ZodDate>;
     scope: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    accessToken: string;
-    tokenType: string;
-    expiresAt?: Date | undefined;
-    refreshToken?: string | undefined;
-    expiresIn?: number | undefined;
-    scope?: string | undefined;
-}, {
-    accessToken: string;
-    expiresAt?: Date | undefined;
-    refreshToken?: string | undefined;
-    tokenType?: string | undefined;
-    expiresIn?: number | undefined;
-    scope?: string | undefined;
-}>;
+}, z.core.$strip>;
 type OAuthToken = z.infer<typeof OAuthTokenSchema>;
 declare const OAuthConfigSchema: z.ZodObject<{
     clientId: z.ZodString;
@@ -230,52 +181,33 @@ declare const OAuthConfigSchema: z.ZodObject<{
     tokenUrl: z.ZodString;
     redirectUri: z.ZodString;
     scope: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    clientId: string;
-    authorizationUrl: string;
-    tokenUrl: string;
-    redirectUri: string;
-    scope?: string | undefined;
-    clientSecret?: string | undefined;
-}, {
-    clientId: string;
-    authorizationUrl: string;
-    tokenUrl: string;
-    redirectUri: string;
-    scope?: string | undefined;
-    clientSecret?: string | undefined;
-}>;
+}, z.core.$strip>;
 type OAuthConfig = z.infer<typeof OAuthConfigSchema>;
 declare const ApiKeyCredentialSchema: z.ZodObject<{
     apiKey: z.ZodString;
     headerName: z.ZodDefault<z.ZodString>;
     headerPrefix: z.ZodDefault<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    apiKey: string;
-    headerName: string;
-    headerPrefix: string;
-}, {
-    apiKey: string;
-    headerName?: string | undefined;
-    headerPrefix?: string | undefined;
-}>;
+}, z.core.$strip>;
 type ApiKeyCredential = z.infer<typeof ApiKeyCredentialSchema>;
 declare const AuthSessionSchema: z.ZodObject<{
-    platform: z.ZodEnum<["google_scholar", "pubmed", "semantic_scholar", "arxiv", "twitter", "linkedin", "reddit", "bloomberg", "reuters", "medium", "substack", "custom"]>;
+    platform: z.ZodEnum<{
+        custom: "custom";
+        medium: "medium";
+        google_scholar: "google_scholar";
+        pubmed: "pubmed";
+        semantic_scholar: "semantic_scholar";
+        arxiv: "arxiv";
+        twitter: "twitter";
+        linkedin: "linkedin";
+        reddit: "reddit";
+        bloomberg: "bloomberg";
+        reuters: "reuters";
+        substack: "substack";
+    }>;
     isAuthenticated: z.ZodBoolean;
     lastChecked: z.ZodDate;
     error: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    platform: "custom" | "medium" | "google_scholar" | "pubmed" | "semantic_scholar" | "arxiv" | "twitter" | "linkedin" | "reddit" | "bloomberg" | "reuters" | "substack";
-    isAuthenticated: boolean;
-    lastChecked: Date;
-    error?: string | undefined;
-}, {
-    platform: "custom" | "medium" | "google_scholar" | "pubmed" | "semantic_scholar" | "arxiv" | "twitter" | "linkedin" | "reddit" | "bloomberg" | "reuters" | "substack";
-    isAuthenticated: boolean;
-    lastChecked: Date;
-    error?: string | undefined;
-}>;
+}, z.core.$strip>;
 type AuthSession = z.infer<typeof AuthSessionSchema>;
 interface PlatformAuthConfig {
     platform: Platform;
@@ -775,7 +707,7 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
             recorded: boolean;
             totalFindings: number;
         }>;
-        getResearchStatus: ai.Tool<{}, {
+        getResearchStatus: ai.Tool<Record<string, never>, {
             sourcesFound: number;
             sourcesScraped: number;
             findingsRecorded: number;

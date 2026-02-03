@@ -4,6 +4,7 @@
  */
 import { v4 as uuid } from "uuid";
 import pLimit from "p-limit";
+import { loggers } from "@onegenui/utils";
 import type { DeepSearchPort } from "../ports/deep-search.port.js";
 import type {
   ContentScraperPort,
@@ -31,6 +32,8 @@ import type {
 import type { ResearchEvent } from "../domain/events.schema.js";
 import type { EffortConfig } from "../domain/effort-level.schema.js";
 import { QueryDecomposer } from "./query-decomposer.js";
+
+const log = loggers.research;
 
 export interface OrchestratorPorts {
   search: DeepSearchPort;
@@ -83,11 +86,11 @@ export class ResearchOrchestrator {
     this.state = this.initState();
     const { researchId } = this.state;
 
-    console.log("[DeepResearch] execute() started", { researchId, queryLength: queryText.length });
+    log.debug("[DeepResearch] execute() started", { researchId, queryLength: queryText.length });
 
     try {
       // Phase 1: Query Decomposition
-      console.log("[DeepResearch] Phase 1: Decomposing query");
+      log.debug("[DeepResearch] Phase 1: Decomposing query");
       yield this.phaseStarted(
         "decomposing",
         "Decomposing query into sub-queries",
@@ -97,7 +100,7 @@ export class ResearchOrchestrator {
         this.config.effort,
         context,
       );
-      console.log("[DeepResearch] Query decomposed", { subQueries: query.subQueries.length });
+      log.debug("[DeepResearch] Query decomposed", { subQueries: query.subQueries.length });
       this.state.query = query;
       this.state.totalSteps = this.calculateTotalSteps(query);
       yield this.phaseCompleted("decomposing");
@@ -220,7 +223,7 @@ export class ResearchOrchestrator {
         completedAt: new Date(),
       };
     } catch (error) {
-      console.error("[DeepResearch] Error in execute():", error);
+      log.error("[DeepResearch] Error in execute():", error);
       yield {
         type: "error",
         timestamp: new Date(),
@@ -233,7 +236,19 @@ export class ResearchOrchestrator {
         "failed",
         error instanceof Error ? error.message : "Unknown error",
       );
+    } finally {
+      // Cleanup to prevent memory leaks
+      this.cleanup();
     }
+  }
+
+  /** Clear internal state to free memory after execution */
+  private cleanup(): void {
+    this.state.sources.clear();
+    this.state.scrapedContent.clear();
+    this.state.analyzedContent.clear();
+    this.state.rankedSources = [];
+    log.debug("[DeepResearch] Cleanup completed");
   }
 
   private async *executeSearchPhase(
@@ -264,6 +279,10 @@ export class ResearchOrchestrator {
           });
 
           for (const source of result.sources) {
+            // Limit sources to prevent unbounded memory growth
+            if (this.state.sources.size >= this.config.effort.maxSources * 2) {
+              break;
+            }
             if (!this.state.sources.has(source.url)) {
               this.state.sources.set(source.url, source as Source);
             }

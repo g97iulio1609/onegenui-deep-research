@@ -24,7 +24,7 @@ export const EntitySchema = z.object({
   aliases: z.array(z.string()).default([]),
   sourceIds: z.array(z.string().uuid()), // Sources mentioning this entity
   confidence: z.number().min(0).max(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type Entity = z.infer<typeof EntitySchema>;
 

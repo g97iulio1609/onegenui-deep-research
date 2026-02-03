@@ -6,7 +6,7 @@ import {
   QueryDecomposer,
   ResearchOrchestrator,
   createDeepResearchTools
-} from "./chunk-WF54U24F.js";
+} from "./chunk-ZK77RB7Y.js";
 
 // src/config.ts
 import { z } from "zod";
@@ -293,7 +293,7 @@ var EntitySchema = z4.object({
   sourceIds: z4.array(z4.string().uuid()),
   // Sources mentioning this entity
   confidence: z4.number().min(0).max(1),
-  metadata: z4.record(z4.unknown()).optional()
+  metadata: z4.record(z4.string(), z4.unknown()).optional()
 });
 var RelationshipTypeSchema = z4.enum([
   "related_to",
@@ -449,7 +449,7 @@ var QualityScoreSchema = z6.object({
 var ChartConfigSchema = z6.object({
   type: z6.enum(["bar", "line", "area", "pie", "scatter"]),
   title: z6.string(),
-  data: z6.array(z6.record(z6.union([z6.string(), z6.number()]))),
+  data: z6.array(z6.record(z6.string(), z6.union([z6.string(), z6.number()]))),
   xKey: z6.string(),
   yKeys: z6.array(z6.string()),
   description: z6.string().optional()

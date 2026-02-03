@@ -51,7 +51,7 @@ export type QualityScore = z.infer<typeof QualityScoreSchema>;
 export const ChartConfigSchema = z.object({
   type: z.enum(["bar", "line", "area", "pie", "scatter"]),
   title: z.string(),
-  data: z.array(z.record(z.union([z.string(), z.number()]))),
+  data: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
   xKey: z.string(),
   yKeys: z.array(z.string()),
   description: z.string().optional(),
