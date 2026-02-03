@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, V as VectorlessKnowledgeBasePort, F as VectorlessDocument, H as VectorlessIndexOptions, I as VectorlessQueryOptions, J as VectorlessQueryResult, N as OrchestratorPorts, P as ResearchEvent, Q as ResearchResult } from './tools--55Iqxju.js';
-export { aw as BaseEventSchema, as as ChartConfig, ar as ChartConfigSchema, ag as CitationSchema, aN as Claim, aH as CompletedEventSchema, aj as ConflictSchema, aO as ContentQuality, aQ as DEFAULT_GRAPH_OPTIONS, aP as DEFAULT_RANKING_WEIGHTS, aR as DEFAULT_SYNTHESIS_OPTIONS, W as EFFORT_PRESETS, X as EffortConfigSchema, U as EffortLevelSchema, a8 as EntitySchema, a7 as EntityType, a6 as EntityTypeSchema, aG as ErrorEventSchema, aD as FindingDiscoveredEventSchema, ai as KeyFindingSchema, ac as KnowledgeGraphSchema, $ as MediaItem, _ as MediaItemSchema, ad as MindMapNode, ae as MindMapNodeSchema, af as MindMapSchema, aT as OrchestratorConfig, ay as PhaseCompletedEventSchema, aJ as PhaseStartedEvent, ax as PhaseStartedEventSchema, aL as ProgressUpdateEvent, aE as ProgressUpdateEventSchema, aM as QualityCheckEvent, aF as QualityCheckEventSchema, aq as QualityScore, ap as QualityScoreSchema, a1 as RankedSourceSchema, ab as RelationshipSchema, aa as RelationshipType, a9 as RelationshipTypeSchema, aI as ResearchEventSchema, aS as ResearchOrchestrator, a5 as ResearchQuerySchema, av as ResearchResultSchema, ao as ResearchStats, an as ResearchStatsSchema, am as ResearchStatus, al as ResearchStatusSchema, a3 as SearchStrategy, a2 as SearchStrategySchema, ah as SectionSchema, aC as SourceExtractedEventSchema, aB as SourceFoundEventSchema, a0 as SourceSchema, Z as SourceType, Y as SourceTypeSchema, aA as StepCompletedEventSchema, aK as StepStartedEvent, az as StepStartedEventSchema, a4 as SubQuerySchema, ak as SynthesisSchema, au as TimelineEvent, at as TimelineEventSchema, T as createDeepResearchTools } from './tools--55Iqxju.js';
+import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, F as OrchestratorPorts, H as ResearchEvent, I as ResearchResult } from './tools-CUQflq9A.js';
+export { ar as BaseEventSchema, an as ChartConfig, am as ChartConfigSchema, ab as CitationSchema, aI as Claim, aC as CompletedEventSchema, ae as ConflictSchema, aJ as ContentQuality, aL as DEFAULT_GRAPH_OPTIONS, aK as DEFAULT_RANKING_WEIGHTS, aM as DEFAULT_SYNTHESIS_OPTIONS, P as EFFORT_PRESETS, Q as EffortConfigSchema, N as EffortLevelSchema, a3 as EntitySchema, a2 as EntityType, a1 as EntityTypeSchema, aB as ErrorEventSchema, ay as FindingDiscoveredEventSchema, ad as KeyFindingSchema, a7 as KnowledgeGraphSchema, W as MediaItem, V as MediaItemSchema, a8 as MindMapNode, a9 as MindMapNodeSchema, aa as MindMapSchema, aO as OrchestratorConfig, at as PhaseCompletedEventSchema, aE as PhaseStartedEvent, as as PhaseStartedEventSchema, aG as ProgressUpdateEvent, az as ProgressUpdateEventSchema, aH as QualityCheckEvent, aA as QualityCheckEventSchema, al as QualityScore, ak as QualityScoreSchema, Y as RankedSourceSchema, a6 as RelationshipSchema, a5 as RelationshipType, a4 as RelationshipTypeSchema, aD as ResearchEventSchema, aN as ResearchOrchestrator, a0 as ResearchQuerySchema, aq as ResearchResultSchema, aj as ResearchStats, ai as ResearchStatsSchema, ah as ResearchStatus, ag as ResearchStatusSchema, _ as SearchStrategy, Z as SearchStrategySchema, ac as SectionSchema, ax as SourceExtractedEventSchema, aw as SourceFoundEventSchema, X as SourceSchema, U as SourceType, T as SourceTypeSchema, av as StepCompletedEventSchema, aF as StepStartedEvent, au as StepStartedEventSchema, $ as SubQuerySchema, af as SynthesisSchema, ap as TimelineEvent, ao as TimelineEventSchema, J as createDeepResearchTools } from './tools-CUQflq9A.js';
 import * as ai from 'ai';
 import { LanguageModel, embed, ToolLoopAgent } from 'ai';
 
@@ -570,43 +570,6 @@ declare class AiSdkLlmAdapter implements LLMPort {
     private cosineSimilarity;
 }
 
-/**
- * Vectorless Knowledge Base Adapter
- *
- * Integrates scraped content with vectorless for comprehensive report generation.
- * Uses in-memory storage for research session with semantic chunking.
- */
-
-declare class VectorlessKnowledgeBaseAdapter implements VectorlessKnowledgeBasePort {
-    private llm;
-    private chunks;
-    private documents;
-    private enabled;
-    constructor(llm: LLMPort, options?: {
-        enabled?: boolean;
-    });
-    isEnabled(): boolean;
-    indexDocuments(documents: VectorlessDocument[], options?: VectorlessIndexOptions): Promise<{
-        indexed: number;
-        failed: number;
-    }>;
-    query(query: string, options?: VectorlessQueryOptions): Promise<VectorlessQueryResult[]>;
-    generateReport(query: string, context: {
-        findings: string[];
-        sources: {
-            url: string;
-            title: string;
-        }[];
-        topics: string[];
-    }): AsyncGenerator<{
-        type: "chunk" | "complete";
-        content: string;
-    }>;
-    clear(sessionId: string): Promise<void>;
-    private chunkContent;
-    private calculateRelevance;
-}
-
 declare class QueryDecomposer {
     private llm;
     constructor(llm: LLMPort);
@@ -624,8 +587,6 @@ interface DeepResearchOptions$1 {
     customConfig?: Partial<EffortConfig>;
     context?: string;
     abortSignal?: AbortSignal;
-    /** Enable vectorless knowledge base integration for comprehensive reports */
-    useVectorless?: boolean;
 }
 declare class DeepResearchUseCase {
     private ports;
@@ -674,14 +635,16 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
             searchType: "news" | "web";
         }, {
             found: number;
+            scraped: number;
             sources: {
-                title: string;
-                url: string;
-                snippet: string;
+                title: string | undefined;
+                url: string | undefined;
+                snippet: string | undefined;
             }[];
             error?: undefined;
         } | {
             found: number;
+            scraped: number;
             sources: never[];
             error: string;
         }>;
@@ -691,6 +654,7 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
             success: boolean;
             title: string;
             wordCount: number;
+            content: string;
             excerpt: string;
             error?: undefined;
         } | {
@@ -698,6 +662,7 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
             error: string;
             title?: undefined;
             wordCount?: undefined;
+            content?: undefined;
             excerpt?: undefined;
         }>;
         recordFinding: ai.Tool<{
@@ -725,6 +690,14 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
         scrapedContent: Map<string, string>;
         findings: string[];
         startTime: number;
+        batchSummaries: {
+            batchNum: number;
+            summary: string;
+            sourceCount: number;
+        }[];
+        lastSummarizedIndex: number;
+        pendingSummaryPromise: Promise<void> | null;
+        stepCount: number;
     };
     research(query: string, context?: string): Promise<DeepResearchAgentResult>;
 };
@@ -760,4 +733,4 @@ interface DeepResearchInstance {
  */
 declare function createDeepResearch(factoryOptions: DeepResearchFactoryOptions): DeepResearchInstance;
 
-export { AcademicSearchAdapter, AiSdkLlmAdapter, type AiSdkLlmAdapterOptions, AnalysisContext, AnalyzedContent, ApiKeyAuthAdapter, type ApiKeyCredential, ApiKeyCredentialSchema, AuthManagerAdapter, type AuthMethod, AuthMethodSchema, type AuthPort, type AuthSession, AuthSessionSchema, type BrowserSessionPort, CREDIBILITY_TIERS, Citation, Conflict, ContentAnalyzerAdapter, ContentAnalyzerPort, ContentScraperPort, CookieAuthAdapter, type CookieAuthPort, type CookieCredential, CookieCredentialSchema, type Credential, CredentialSchema, type CredibilityConfig, type CredibilityTier, CredibilityTierSchema, DEFAULT_SCORING_WEIGHTS, DEFAULT_SCRAPING_CONFIG, DEFAULT_SEARCH_CONFIG, type DeepResearchAgentOptions, type DeepResearchAgentResult, type DeepResearchFactoryOptions, type DeepResearchInstance, type DeepResearchOptions, DeepResearchUseCase, DeepSearchAdapter, DeepSearchPort, EFFORT_TIMING, EffortConfig, EffortLevel, Entity, GraphBuildOptions, JS_REQUIRED_DOMAINS, KeyFinding, KnowledgeGraph, KnowledgeGraphAdapter, KnowledgeGraphPort, LLMOptions, LLMPort, LLMResponse, LightweightScraperAdapter, MindMap, NewsSearchAdapter, type OAuthConfig, OAuthConfigSchema, type OAuthPort, type OAuthToken, OAuthTokenSchema, OrchestratorPorts, OutlineSection, PLATFORM_AUTH_CONFIGS, type PhaseConfig, type Platform, type PlatformAuthConfig, PlatformSchema, type QualityScoringWeights, QualityScoringWeightsSchema, QueryDecomposer, RESEARCH_PHASES, RankedSource, RankingCriteria, RankingWeights, Relationship, type ResearchConfig, ResearchEvent, type ResearchPhase, ResearchPhaseSchema, ResearchQuery, ResearchResult, ScrapeOptions, ScrapeProgress, ScrapedContent, type ScrapingConfig, ScrapingConfigSchema, type SearchAdapterConfig, type SearchConfig, SearchConfigSchema, SearchOptions, SearchProgress, SearchResult, Section, Source, SourceRankerAdapter, SourceRankerPort, SubQuery, Synthesis, SynthesisEvent, SynthesisOptions, SynthesizerAdapter, SynthesizerPort, type TimingConfig, VectorlessDocument, VectorlessIndexOptions, VectorlessKnowledgeBaseAdapter, VectorlessKnowledgeBasePort, VectorlessQueryOptions, VectorlessQueryResult, createDeepResearch, createDeepResearchAgent, getAuthManager, getDomainCredibility, getResearchConfig, requiresJavaScript };
+export { AcademicSearchAdapter, AiSdkLlmAdapter, type AiSdkLlmAdapterOptions, AnalysisContext, AnalyzedContent, ApiKeyAuthAdapter, type ApiKeyCredential, ApiKeyCredentialSchema, AuthManagerAdapter, type AuthMethod, AuthMethodSchema, type AuthPort, type AuthSession, AuthSessionSchema, type BrowserSessionPort, CREDIBILITY_TIERS, Citation, Conflict, ContentAnalyzerAdapter, ContentAnalyzerPort, ContentScraperPort, CookieAuthAdapter, type CookieAuthPort, type CookieCredential, CookieCredentialSchema, type Credential, CredentialSchema, type CredibilityConfig, type CredibilityTier, CredibilityTierSchema, DEFAULT_SCORING_WEIGHTS, DEFAULT_SCRAPING_CONFIG, DEFAULT_SEARCH_CONFIG, type DeepResearchAgentOptions, type DeepResearchAgentResult, type DeepResearchFactoryOptions, type DeepResearchInstance, type DeepResearchOptions, DeepResearchUseCase, DeepSearchAdapter, DeepSearchPort, EFFORT_TIMING, EffortConfig, EffortLevel, Entity, GraphBuildOptions, JS_REQUIRED_DOMAINS, KeyFinding, KnowledgeGraph, KnowledgeGraphAdapter, KnowledgeGraphPort, LLMOptions, LLMPort, LLMResponse, LightweightScraperAdapter, MindMap, NewsSearchAdapter, type OAuthConfig, OAuthConfigSchema, type OAuthPort, type OAuthToken, OAuthTokenSchema, OrchestratorPorts, OutlineSection, PLATFORM_AUTH_CONFIGS, type PhaseConfig, type Platform, type PlatformAuthConfig, PlatformSchema, type QualityScoringWeights, QualityScoringWeightsSchema, QueryDecomposer, RESEARCH_PHASES, RankedSource, RankingCriteria, RankingWeights, Relationship, type ResearchConfig, ResearchEvent, type ResearchPhase, ResearchPhaseSchema, ResearchQuery, ResearchResult, ScrapeOptions, ScrapeProgress, ScrapedContent, type ScrapingConfig, ScrapingConfigSchema, type SearchAdapterConfig, type SearchConfig, SearchConfigSchema, SearchOptions, SearchProgress, SearchResult, Section, Source, SourceRankerAdapter, SourceRankerPort, SubQuery, Synthesis, SynthesisEvent, SynthesisOptions, SynthesizerAdapter, SynthesizerPort, type TimingConfig, createDeepResearch, createDeepResearchAgent, getAuthManager, getDomainCredibility, getResearchConfig, requiresJavaScript };

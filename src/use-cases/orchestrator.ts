@@ -4,6 +4,7 @@
  */
 import { v4 as uuid } from "uuid";
 import pLimit from "p-limit";
+// @ts-ignore - no declaration file available
 import { loggers } from "@onegenui/utils";
 import type { DeepSearchPort } from "../ports/deep-search.port.js";
 import type {
@@ -18,7 +19,6 @@ import type { SourceRankerPort } from "../ports/source-ranker.port.js";
 import type { KnowledgeGraphPort } from "../ports/knowledge-graph.port.js";
 import type { SynthesizerPort } from "../ports/synthesizer.port.js";
 import type { LLMPort } from "../ports/llm.port.js";
-import type { VectorlessKnowledgeBasePort } from "../ports/vectorless-kb.port.js";
 import type {
   ResearchQuery,
   SubQuery,
@@ -43,13 +43,11 @@ export interface OrchestratorPorts {
   graph: KnowledgeGraphPort;
   synthesizer: SynthesizerPort;
   llm: LLMPort;
-  vectorlessKb?: VectorlessKnowledgeBasePort;
 }
 
 export interface OrchestratorConfig {
   effort: EffortConfig;
   abortSignal?: AbortSignal;
-  useVectorless?: boolean;
 }
 
 interface OrchestratorState {
@@ -131,14 +129,6 @@ export class ResearchOrchestrator {
       yield* this.executeExtractionPhase();
       yield this.phaseCompleted("extracting");
 
-      // Phase 4.5: Index to Vectorless KB (if enabled)
-      if (this.config.useVectorless && this.ports.vectorlessKb?.isEnabled()) {
-        yield this.phaseStarted(
-          "analyzing",
-          "Indexing content to knowledge base",
-        );
-        await this.indexToVectorless();
-      }
 
       // Phase 5: Content Analysis
       yield this.phaseStarted(
@@ -165,16 +155,12 @@ export class ResearchOrchestrator {
         }
         yield this.phaseStarted(
           "synthesizing",
-          this.config.useVectorless 
-            ? "Generating comprehensive report using knowledge base"
-            : "Generating comprehensive report",
+          "Generating comprehensive report",
         );
       }
 
-      // Phase 7: Synthesis (use vectorless-enhanced if enabled)
-      const synthesis = this.config.useVectorless && this.ports.vectorlessKb?.isEnabled()
-        ? yield* this.executeVectorlessSynthesis(query)
-        : yield* this.executeSynthesisPhase(query);
+      // Phase 7: Synthesis
+      const synthesis = yield* this.executeSynthesisPhase(query);
       yield this.phaseCompleted("synthesizing");
 
       // Phase 8: Visualization (if enabled)
@@ -517,121 +503,6 @@ export class ResearchOrchestrator {
       charts: [], // TODO: Implement chart generation
       timeline: [], // TODO: Implement timeline extraction
     };
-  }
-
-  /**
-   * Index scraped content to vectorless knowledge base
-   */
-  private async indexToVectorless(): Promise<void> {
-    if (!this.ports.vectorlessKb) return;
-
-    const documents = Array.from(this.state.scrapedContent.entries()).map(
-      ([url, content]) => {
-        const source = this.state.sources.get(url);
-        return {
-          id: source?.id ?? url,
-          url,
-          title: content.title,
-          content: content.content,
-          metadata: {
-            sourceId: source?.id ?? url,
-            domain: source?.domain ?? new URL(url).hostname,
-            scrapedAt: new Date(),
-            wordCount: content.wordCount,
-            relevanceScore: this.state.rankedSources.find(
-              (s) => s.url === url,
-            )?.relevanceScore,
-          },
-        };
-      },
-    );
-
-    await this.ports.vectorlessKb.indexDocuments(documents);
-  }
-
-  /**
-   * Generate comprehensive synthesis using vectorless knowledge base
-   */
-  private async *executeVectorlessSynthesis(
-    query: ResearchQuery,
-  ): AsyncGenerator<
-    ResearchEvent,
-    import("../domain/synthesis.schema.js").Synthesis
-  > {
-    const { researchId } = this.state;
-    const contents = Array.from(this.state.analyzedContent.values());
-    const sources = Array.from(this.state.sources.values());
-
-    // Collect all findings
-    const findings = contents.flatMap((c) => c.keyPoints);
-
-    // Generate report using vectorless
-    let reportContent = "";
-
-    if (this.ports.vectorlessKb) {
-      for await (const chunk of this.ports.vectorlessKb.generateReport(
-        query.originalQuery,
-        {
-          findings,
-          sources: sources.map((s) => ({ url: s.url, title: s.title })),
-          topics: query.mainTopics,
-        },
-      )) {
-        if (chunk.type === "chunk") {
-          reportContent += chunk.content;
-          yield {
-            type: "progress-update",
-            timestamp: new Date(),
-            researchId,
-            progress: 0.85,
-            message: "Generating comprehensive report...",
-            stats: {
-              sourcesFound: this.state.sources.size,
-              sourcesProcessed: this.state.scrapedContent.size,
-              stepsCompleted: this.state.stepsCompleted,
-              totalSteps: this.state.totalSteps,
-            },
-          };
-        }
-      }
-    }
-
-    // Build synthesis object
-    const keyFindingObjects = findings.slice(0, 10).map((finding, idx) => ({
-      id: uuid(),
-      finding,
-      confidence: "medium" as const,
-      citationIds: [],
-      category: query.mainTopics[idx % query.mainTopics.length] ?? "General",
-    }));
-
-    const synthesis: import("../domain/synthesis.schema.js").Synthesis = {
-      executiveSummary: reportContent.slice(0, 1000),
-      keyFindings: keyFindingObjects,
-      sections: [
-        {
-          id: uuid(),
-          title: "Full Report",
-          content: reportContent,
-          citationIds: [],
-          media: [],
-          subsections: [],
-          order: 0,
-        },
-      ],
-      conflicts: [],
-      citations: sources.slice(0, 20).map((s, idx) => ({
-        id: `[${idx + 1}]`,
-        sourceId: s.id,
-        url: s.url,
-        title: s.title,
-        domain: s.domain,
-      })),
-      relatedQuestions: [],
-      generatedAt: new Date(),
-    };
-
-    return synthesis;
   }
 
   private async assessQuality(): Promise<QualityScore> {

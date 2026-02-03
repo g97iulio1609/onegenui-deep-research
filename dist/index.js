@@ -6,7 +6,7 @@ import {
   QueryDecomposer,
   ResearchOrchestrator,
   createDeepResearchTools
-} from "./chunk-ZK77RB7Y.js";
+} from "./chunk-4B2B3SUT.js";
 
 // src/config.ts
 import { z } from "zod";
@@ -2788,165 +2788,10 @@ var AiSdkLlmAdapter = class {
   }
 };
 
-// src/adapters/vectorless-kb.adapter.ts
-var VectorlessKnowledgeBaseAdapter = class {
-  constructor(llm, options) {
-    this.llm = llm;
-    this.enabled = options?.enabled ?? true;
-  }
-  chunks = /* @__PURE__ */ new Map();
-  documents = /* @__PURE__ */ new Map();
-  enabled;
-  isEnabled() {
-    return this.enabled;
-  }
-  async indexDocuments(documents, options) {
-    if (!this.enabled) return { indexed: 0, failed: 0 };
-    const maxTokensPerNode = options?.maxTokensPerNode ?? 2e3;
-    let indexed = 0;
-    let failed = 0;
-    for (const doc of documents) {
-      try {
-        this.documents.set(doc.id, doc);
-        const chunks = this.chunkContent(doc.content, maxTokensPerNode);
-        const storedChunks = chunks.map((chunk, i) => ({
-          documentId: doc.id,
-          chunk,
-          metadata: {
-            ...doc.metadata,
-            chunkIndex: i,
-            url: doc.url,
-            title: doc.title
-          }
-        }));
-        this.chunks.set(doc.id, storedChunks);
-        indexed++;
-      } catch {
-        failed++;
-      }
-    }
-    return { indexed, failed };
-  }
-  async query(query, options) {
-    if (!this.enabled) return [];
-    const topK = options?.topK ?? 10;
-    const minScore = options?.minScore ?? 0.3;
-    const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
-    const results = [];
-    for (const [docId, chunks] of this.chunks) {
-      for (const chunk of chunks) {
-        const score = this.calculateRelevance(chunk.chunk, queryTerms);
-        if (score >= minScore) {
-          results.push({
-            documentId: docId,
-            chunk: chunk.chunk,
-            score,
-            metadata: chunk.metadata
-          });
-        }
-      }
-    }
-    return results.sort((a, b) => b.score - a.score).slice(0, topK);
-  }
-  async *generateReport(query, context) {
-    const relevantChunks = await this.query(query, { topK: 20, minScore: 0.2 });
-    const knowledgeContext = relevantChunks.map((r) => `[Source: ${r.metadata.title ?? "Unknown"}]
-${r.chunk}`).join("\n\n---\n\n");
-    const findingsText = context.findings.slice(0, 15).join("\n- ");
-    const sourcesText = context.sources.slice(0, 20).map((s) => `- ${s.title}: ${s.url}`).join("\n");
-    const prompt = `You are a research analyst writing a comprehensive, detailed report.
-
-RESEARCH QUERY: ${query}
-
-MAIN TOPICS: ${context.topics.join(", ")}
-
-KEY FINDINGS:
-- ${findingsText}
-
-KNOWLEDGE BASE CONTENT:
-${knowledgeContext}
-
-SOURCES:
-${sourcesText}
-
-Write a comprehensive, well-structured research report that:
-1. Has an executive summary
-2. Covers all main topics in depth with multiple sections
-3. Includes specific data, statistics, and quotes from sources
-4. Provides analysis and insights
-5. Has a conclusion with key takeaways
-6. Uses proper citations [Source Name]
-
-The report should be detailed, professional, and at least 2000 words.
-Use markdown formatting with headers, bullet points, and emphasis.`;
-    let fullContent = "";
-    for await (const chunk of this.llm.streamText(prompt, {
-      maxTokens: 16e3,
-      temperature: 0.7
-    })) {
-      fullContent += chunk;
-      yield { type: "chunk", content: chunk };
-    }
-    yield { type: "complete", content: fullContent };
-  }
-  async clear(sessionId) {
-    this.chunks.clear();
-    this.documents.clear();
-  }
-  chunkContent(content, maxTokens) {
-    const chunks = [];
-    const charsPerToken = 4;
-    const maxChars = maxTokens * charsPerToken;
-    const paragraphs = content.split(/\n\n+/);
-    let currentChunk = "";
-    for (const para of paragraphs) {
-      if ((currentChunk + para).length > maxChars) {
-        if (currentChunk) {
-          chunks.push(currentChunk.trim());
-        }
-        if (para.length > maxChars) {
-          const sentences = para.split(/(?<=[.!?])\s+/);
-          currentChunk = "";
-          for (const sentence of sentences) {
-            if ((currentChunk + sentence).length > maxChars) {
-              if (currentChunk) chunks.push(currentChunk.trim());
-              currentChunk = sentence + " ";
-            } else {
-              currentChunk += sentence + " ";
-            }
-          }
-        } else {
-          currentChunk = para + "\n\n";
-        }
-      } else {
-        currentChunk += para + "\n\n";
-      }
-    }
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-    return chunks;
-  }
-  calculateRelevance(text, queryTerms) {
-    const textLower = text.toLowerCase();
-    let matches = 0;
-    let totalWeight = 0;
-    for (const term of queryTerms) {
-      const weight = term.length > 5 ? 2 : 1;
-      if (textLower.includes(term)) {
-        matches += weight;
-      }
-      totalWeight += weight;
-    }
-    const lengthBonus = Math.min(text.length / 1e3, 0.2);
-    return totalWeight > 0 ? matches / totalWeight * 0.8 + lengthBonus : 0;
-  }
-};
-
 // src/agent/deep-research-agent.ts
-import { ToolLoopAgent, tool, stepCountIs } from "ai";
+import { ToolLoopAgent, tool, stepCountIs, generateText as generateText2 } from "ai";
 import { z as z11 } from "zod";
+import pLimit3 from "p-limit";
 import { WebSearchUseCase, OneCrawlSearchAdapter, OneCrawlScraperAdapter } from "@onegenui/web-search";
 var DEFAULT_MAX_TOKENS = 65e3;
 var webSearchInstance = null;
@@ -2968,7 +2813,55 @@ function createDeepResearchAgent(options) {
     sources: /* @__PURE__ */ new Map(),
     scrapedContent: /* @__PURE__ */ new Map(),
     findings: [],
-    startTime: Date.now()
+    startTime: Date.now(),
+    // Map-reduce batch summarization
+    batchSummaries: [],
+    lastSummarizedIndex: 0,
+    pendingSummaryPromise: null,
+    stepCount: 0
+  };
+  const BATCH_SIZE = 5;
+  const summarizeBatch = async (batchNum, contents) => {
+    if (contents.length === 0) return;
+    console.log(`[DeepResearch] Starting batch ${batchNum} summarization (${contents.length} sources)...`);
+    const contentText = contents.map(
+      (c, i) => `### Source ${i + 1}: ${c.title}
+URL: ${c.url}
+${c.content.slice(0, 4e3)}
+`
+    ).join("\n---\n");
+    const summaryPrompt = `You are extracting key information from research sources.
+
+## SOURCES TO ANALYZE
+${contentText}
+
+## YOUR TASK
+For EACH source above, extract:
+1. Main facts and data points
+2. Key quotes or statements
+3. Unique insights not likely found elsewhere
+4. Any contradictions with common knowledge
+
+Write a COMPREHENSIVE summary (500-800 words) that captures ALL important information from these sources. Be specific - include names, dates, numbers, and direct quotes where relevant.
+
+Format as structured bullet points grouped by theme.`;
+    try {
+      const result = await generateText2({
+        model,
+        prompt: summaryPrompt,
+        maxOutputTokens: 4e3
+      });
+      if (result.text) {
+        state.batchSummaries.push({
+          batchNum,
+          summary: result.text,
+          sourceCount: contents.length
+        });
+        console.log(`[DeepResearch] Batch ${batchNum} summarized: ${result.text.length} chars`);
+      }
+    } catch (error) {
+      console.error(`[DeepResearch] Batch ${batchNum} summarization failed:`, error);
+    }
   };
   const researchTools = {
     webSearch: tool({
@@ -2998,6 +2891,7 @@ function createDeepResearchAgent(options) {
           const results = response.results.results || [];
           console.log(`[DeepResearch] Processing ${results.length} results, first result:`, results[0] ? JSON.stringify(results[0]).slice(0, 200) : "none");
           let addedCount = 0;
+          const newUrls = [];
           for (const result of results) {
             let realUrl = result.url;
             if (realUrl && realUrl.includes("duckduckgo.com/l/?uddg=")) {
@@ -3022,6 +2916,7 @@ function createDeepResearchAgent(options) {
                   domain: urlObj.hostname.replace("www.", ""),
                   snippet: result.snippet
                 });
+                newUrls.push(realUrl);
                 addedCount++;
               } catch (e) {
                 console.log(`[DeepResearch] Invalid URL: ${realUrl}`, e);
@@ -3029,8 +2924,39 @@ function createDeepResearchAgent(options) {
             }
           }
           console.log(`[DeepResearch] Added ${addedCount} sources, total: ${state.sources.size}`);
+          const urlsToScrape = newUrls.filter((url) => !state.scrapedContent.has(url)).slice(0, 5);
+          if (urlsToScrape.length > 0) {
+            console.log(`[DeepResearch] Starting background scraping for ${urlsToScrape.length} URLs...`);
+            const limit = pLimit3(3);
+            Promise.all(
+              urlsToScrape.map(
+                (url) => limit(async () => {
+                  try {
+                    const response2 = await webSearch.scrape(url, {
+                      timeout: 1e4,
+                      // Reduced timeout
+                      maxContentLength: 15e3,
+                      cache: true
+                    });
+                    const content = response2.result.content;
+                    if (content) {
+                      state.scrapedContent.set(url, content);
+                      console.log(`[DeepResearch] Background scraped: ${url.slice(0, 50)}... (${content.split(/\s+/).length} words)`);
+                    }
+                  } catch (e) {
+                    console.log(`[DeepResearch] Background scrape failed: ${url.slice(0, 50)}...`);
+                  }
+                })
+              )
+            ).then(() => {
+              console.log(`[DeepResearch] Background scraping complete: ${state.scrapedContent.size} total scraped`);
+            }).catch((err) => {
+              console.error(`[DeepResearch] Background scraping error:`, err);
+            });
+          }
           return {
             found: results.length,
+            scraped: state.scrapedContent.size,
             sources: results.slice(0, 8).map((r) => ({
               title: r.title,
               url: r.url,
@@ -3040,6 +2966,7 @@ function createDeepResearchAgent(options) {
         } catch (error) {
           return {
             found: 0,
+            scraped: 0,
             sources: [],
             error: error instanceof Error ? error.message : "Search failed"
           };
@@ -3078,7 +3005,10 @@ function createDeepResearchAgent(options) {
               success: true,
               title: response.result.title,
               wordCount: content.split(/\s+/).length,
-              excerpt: content.slice(0, 1e3)
+              content: content.slice(0, 8e3),
+              // Give model substantial content for synthesis
+              excerpt: content.slice(0, 500)
+              // Short preview
             };
           }
           return { success: false, error: "No content extracted" };
@@ -3128,32 +3058,74 @@ function createDeepResearchAgent(options) {
     stopWhen: stepCountIs(effortConfig.maxSteps),
     maxOutputTokens: maxTokens,
     prepareStep: async ({ stepNumber }) => {
-      console.log(`[DeepResearch] prepareStep called - stepNumber: ${stepNumber}`);
-      if (stepNumber <= 3) {
+      const sourcesFound = state.sources.size;
+      const sourcesScraped = state.scrapedContent.size;
+      const scrapeRatio = sourcesFound > 0 ? sourcesScraped / sourcesFound : 0;
+      const minScrapesRequired = Math.ceil(effortConfig.maxSources * 0.5);
+      const searchPhaseEnd = 5;
+      const forceScrapePhaseEnd = Math.floor(effortConfig.maxSteps * 0.6);
+      const continueScrapingEnd = Math.floor(effortConfig.maxSteps * 0.8);
+      console.log(`[DeepResearch] prepareStep - step: ${stepNumber}, sources: ${sourcesFound}, scraped: ${sourcesScraped}, ratio: ${(scrapeRatio * 100).toFixed(1)}%`);
+      if (stepNumber <= searchPhaseEnd) {
+        console.log(`[DeepResearch] Phase 1: Forcing search (step ${stepNumber}/${searchPhaseEnd})`);
         return {
           activeTools: ["webSearch", "getResearchStatus"],
           toolChoice: { type: "tool", toolName: "webSearch" }
-          // Force search initially
         };
       }
+      if (stepNumber <= forceScrapePhaseEnd && sourcesFound > 5 && scrapeRatio < 0.5) {
+        console.log(`[DeepResearch] Phase 2: Forcing scrape (step ${stepNumber}/${forceScrapePhaseEnd}, ratio ${(scrapeRatio * 100).toFixed(1)}% < 50%)`);
+        return {
+          activeTools: ["scrapeContent", "recordFinding", "getResearchStatus"],
+          toolChoice: { type: "tool", toolName: "scrapeContent" }
+        };
+      }
+      if (stepNumber <= continueScrapingEnd && sourcesScraped < minScrapesRequired && sourcesFound > sourcesScraped) {
+        console.log(`[DeepResearch] Phase 3: Continue scraping (step ${stepNumber}/${continueScrapingEnd}, ${sourcesScraped}/${minScrapesRequired} required)`);
+        return {
+          activeTools: ["scrapeContent", "recordFinding", "webSearch", "getResearchStatus"],
+          toolChoice: { type: "tool", toolName: "scrapeContent" }
+        };
+      }
+      if (sourcesFound > sourcesScraped * 2) {
+        console.log(`[DeepResearch] Phase 4 (open): Hint scrape (many unscraped sources)`);
+        return {
+          activeTools: ["scrapeContent", "recordFinding", "webSearch", "getResearchStatus"]
+        };
+      }
+      console.log(`[DeepResearch] Phase 4 (open): All tools available`);
       return {
         activeTools: ["webSearch", "scrapeContent", "recordFinding", "getResearchStatus"]
       };
     },
     onStepFinish: (step) => {
-      const stepCount = state.stepCount ?? 0;
-      state.stepCount = stepCount + 1;
-      console.log(`[DeepResearch] onStepFinish - step ${stepCount + 1}, sources: ${state.sources.size}, scraped: ${state.scrapedContent.size}`);
+      state.stepCount++;
+      console.log(`[DeepResearch] onStepFinish - step ${state.stepCount}, sources: ${state.sources.size}, scraped: ${state.scrapedContent.size}`);
+      const scrapedUrls = Array.from(state.scrapedContent.keys());
+      const newContentCount = scrapedUrls.length - state.lastSummarizedIndex;
+      if (newContentCount >= BATCH_SIZE) {
+        const batchUrls = scrapedUrls.slice(state.lastSummarizedIndex, state.lastSummarizedIndex + BATCH_SIZE);
+        const batchContents = batchUrls.map((url) => ({
+          url,
+          content: state.scrapedContent.get(url) || "",
+          title: state.sources.get(url)?.title || new URL(url).hostname
+        }));
+        const batchNum = state.batchSummaries.length + 1;
+        state.lastSummarizedIndex += BATCH_SIZE;
+        console.log(`[DeepResearch] Triggering batch ${batchNum} summarization (${batchContents.length} sources) in background`);
+        const summaryPromise = summarizeBatch(batchNum, batchContents);
+        state.pendingSummaryPromise = state.pendingSummaryPromise ? state.pendingSummaryPromise.then(() => summaryPromise) : summaryPromise;
+      }
       onProgress?.({
         type: "progress-update",
         timestamp: /* @__PURE__ */ new Date(),
         researchId: "agent",
-        progress: Math.min(0.95, stepCount / effortConfig.maxSteps),
-        message: `Step ${stepCount + 1} complete`,
+        progress: Math.min(0.95, state.stepCount / effortConfig.maxSteps),
+        message: `Step ${state.stepCount} complete (${state.batchSummaries.length} batches summarized)`,
         stats: {
           sourcesFound: state.sources.size,
           sourcesProcessed: state.scrapedContent.size,
-          stepsCompleted: stepCount + 1,
+          stepsCompleted: state.stepCount,
           totalSteps: effortConfig.maxSteps
         }
       });
@@ -3174,9 +3146,94 @@ Additional context: ${context}` : `Research query: ${query}`;
         phase: "decomposing",
         message: "Starting research..."
       });
-      console.log(`[DeepResearch] Calling agent.generate...`);
-      const result = await agent.generate({ prompt });
-      console.log(`[DeepResearch] agent.generate completed - text length: ${result.text?.length ?? 0}`);
+      console.log(`[DeepResearch] Calling agent.generate with prompt length: ${prompt.length}`);
+      console.log(`[DeepResearch] Agent config - maxSteps: ${effortConfig.maxSteps}, maxTokens: ${maxTokens}`);
+      console.log(`[DeepResearch] Tools available: ${Object.keys(researchTools).join(", ")}`);
+      const startGenTime = Date.now();
+      try {
+        await agent.generate({ prompt });
+        console.log(`[DeepResearch] Research collection completed in ${Date.now() - startGenTime}ms`);
+        console.log(`[DeepResearch] Collected: ${state.sources.size} sources, ${state.scrapedContent.size} scraped, ${state.findings.length} findings`);
+      } catch (genError) {
+        console.error(`[DeepResearch] Research collection FAILED after ${Date.now() - startGenTime}ms:`, genError);
+        throw genError;
+      }
+      onProgress?.({
+        type: "phase-started",
+        timestamp: /* @__PURE__ */ new Date(),
+        researchId: "agent",
+        phase: "synthesizing",
+        message: "Waiting for batch summaries and writing report..."
+      });
+      if (state.pendingSummaryPromise) {
+        console.log(`[DeepResearch] Waiting for pending batch summaries...`);
+        await state.pendingSummaryPromise;
+      }
+      const remainingUrls = Array.from(state.scrapedContent.keys()).slice(state.lastSummarizedIndex);
+      if (remainingUrls.length > 0) {
+        console.log(`[DeepResearch] Summarizing final batch of ${remainingUrls.length} remaining sources`);
+        const finalBatchContents = remainingUrls.map((url) => ({
+          url,
+          content: state.scrapedContent.get(url) || "",
+          title: state.sources.get(url)?.title || new URL(url).hostname
+        }));
+        await summarizeBatch(state.batchSummaries.length + 1, finalBatchContents);
+      }
+      console.log(`[DeepResearch] Synthesis phase: ${state.batchSummaries.length} batch summaries, ${state.findings.length} findings`);
+      const effortRequirements = getEffortRequirements(effort, effortConfig);
+      const findingsList = state.findings.map((f, i) => `${i + 1}. ${f}`).join("\n");
+      const sourcesList = Array.from(state.sources.values()).slice(0, 30).map((s) => `- [${s.title}](${s.url})`).join("\n");
+      const batchSummariesText = state.batchSummaries.map((b) => `### Batch ${b.batchNum} Summary (${b.sourceCount} sources)
+${b.summary}`).join("\n\n---\n\n");
+      const synthesisPrompt = `You are writing a **${effort.toUpperCase()}-LEVEL** comprehensive research report.
+
+## ORIGINAL QUERY
+${query}
+${context ? `
+Context: ${context}` : ""}
+
+## RESEARCH FINDINGS (${state.findings.length} key points extracted during research)
+${findingsList || "No specific findings recorded."}
+
+## SOURCES DISCOVERED (${state.sources.size} total sources)
+${sourcesList}
+
+## SUMMARIZED RESEARCH (${state.batchSummaries.length} batches, ${state.scrapedContent.size} sources analyzed)
+The following are comprehensive summaries extracted from the sources during research:
+
+${batchSummariesText}
+
+---
+
+## YOUR TASK
+Using ALL the summarized research material above, write a **comprehensive ${effort.toUpperCase()}-level research report**.
+
+${effortRequirements.reportInstructions}
+
+## REQUIREMENTS
+- **Word count**: ${effortRequirements.minWords} - ${effortRequirements.maxWords} words (MANDATORY)
+- **Sections**: ${effortRequirements.sections} minimum
+- **Quality**: ${effortRequirements.qualityStandards}
+
+CRITICAL INSTRUCTIONS:
+1. Use the ACTUAL facts, quotes, and data from the batch summaries above
+2. Cite specific information with source references
+3. Provide in-depth analysis, not surface-level summaries
+4. Each section must be substantial (400+ words)`;
+      console.log(`[DeepResearch] Synthesis prompt length: ${synthesisPrompt.length} chars`);
+      const synthesisStart = Date.now();
+      let synthesisResult;
+      try {
+        synthesisResult = await generateText2({
+          model,
+          prompt: synthesisPrompt,
+          maxOutputTokens: maxTokens
+        });
+        console.log(`[DeepResearch] Synthesis completed in ${Date.now() - synthesisStart}ms - text length: ${synthesisResult.text?.length ?? 0}`);
+      } catch (synthError) {
+        console.error(`[DeepResearch] Synthesis FAILED:`, synthError);
+        throw synthError;
+      }
       onProgress?.({
         type: "completed",
         timestamp: /* @__PURE__ */ new Date(),
@@ -3185,7 +3242,7 @@ Additional context: ${context}` : `Research query: ${query}`;
         finalQuality: state.findings.length > 0 ? 0.8 : 0.5
       });
       return {
-        synthesis: result.text,
+        synthesis: synthesisResult.text,
         sources: Array.from(state.sources.values()),
         stats: {
           totalSources: state.sources.size,
@@ -3198,53 +3255,188 @@ Additional context: ${context}` : `Research query: ${query}`;
   };
 }
 function buildInstructions(effort, config) {
-  return `You are a DEEP RESEARCH agent. Your mission is to conduct EXHAUSTIVE research on the given query.
+  const effortRequirements = getEffortRequirements(effort, config);
+  return `You are a DEEP RESEARCH agent producing **${effort.toUpperCase()}-LEVEL** comprehensive research.
 
-## EFFORT LEVEL: ${effort.toUpperCase()}
-- **MINIMUM sources to find**: ${config.maxSources}
-- **MINIMUM sources to scrape**: ${Math.ceil(config.maxSources * 0.5)}
-- **Target steps**: ${config.maxSteps}
+## \u{1F4CA} EFFORT LEVEL: ${effort.toUpperCase()}
+${effortRequirements.summary}
 
-## MANDATORY RESEARCH PHASES
+### Research Parameters:
+- **Sources to Find**: ${config.maxSources} minimum
+- **Sources to Scrape**: ${effortRequirements.sourcesToScrape} minimum
+- **Maximum Steps**: ${config.maxSteps}
+- **Report Word Count**: ${effortRequirements.minWords} - ${effortRequirements.maxWords} words (MANDATORY)
+- **Report Sections**: ${effortRequirements.sections} minimum
 
-### PHASE 1: BROAD SEARCH (steps 1-5)
-You MUST perform at least 5 different web searches with varied queries:
-- Original query in different phrasings
-- Related academic/technical terms
-- Different languages if relevant
-- News and current events angle
+## \u{1F50D} MANDATORY RESEARCH PHASES
 
-### PHASE 2: DEEP EXTRACTION (steps 6-${Math.ceil(config.maxSteps * 0.7)})
-You MUST scrape content from AT LEAST ${Math.ceil(config.maxSources * 0.5)} of the found sources.
-- Use scrapeContent on EVERY promising URL
-- Extract and analyze the actual content
-- Do NOT skip this phase - web snippets are not enough
+### PHASE 1: COMPREHENSIVE SEARCH (steps 1-${effortRequirements.searchSteps})
+Perform ${effortRequirements.searchQueries}+ different web searches with varied queries:
+- Primary query with different phrasings and synonyms
+- Academic and technical terminology variants
+- Current events and recent news angle
+- Industry/expert perspective queries
+- Historical context and background queries
+${effort !== "standard" ? `- Comparative and competitive analysis queries
+- Contrarian/alternative viewpoint queries` : ""}
+${effort === "max" ? `- International/regional perspective queries
+- Edge case and exception queries
+- Future trends and predictions queries` : ""}
 
-### PHASE 3: ANALYSIS (ongoing)
+### PHASE 2: DEEP CONTENT EXTRACTION (steps ${effortRequirements.searchSteps + 1}-${Math.ceil(config.maxSteps * 0.7)})
+You MUST scrape content from AT LEAST ${effortRequirements.sourcesToScrape} of the found sources:
+- Use scrapeContent on EVERY high-quality URL
+- Prioritize authoritative sources (academic, government, industry leaders)
+- Extract full article content, not just snippets
+- Do NOT skip this phase - search snippets are INSUFFICIENT for ${effort} research
+
+### PHASE 3: FINDING EXTRACTION (ongoing)
 For EACH scraped source, use recordFinding to log:
-- Key facts and statistics
-- Expert opinions
-- Contradictions between sources
-- Unique insights
+- Key facts, data points, and statistics
+- Expert quotes and authoritative statements
+- Unique insights not found elsewhere
+${effort !== "standard" ? `- Contradictions between sources
+- Emerging trends and patterns` : ""}
+${effort === "max" ? `- Minority/contrarian opinions
+- Gaps in available information
+- Areas of uncertainty or debate` : ""}
 
-### PHASE 4: SYNTHESIS (final - CRITICAL)
-After ALL research is complete, write a COMPREHENSIVE synthesis that:
-- Is AT LEAST 2000-3000 words long
-- Includes multiple sections with headers
-- Cites sources inline using [source domain] format
-- Covers ALL angles: historical, current state, different perspectives
-- Includes comparisons, contrasts, and nuanced analysis
-- Draws conclusions based on the evidence
+### PHASE 4: FINAL SYNTHESIS (CRITICAL)
+After ALL research is complete, write a COMPREHENSIVE ${effort.toUpperCase()}-level report.
 
-## CRITICAL RULES
-1. DO NOT finish early - use all available steps
-2. DO NOT rely only on search snippets - SCRAPE the actual pages
-3. DO NOT skip scrapeContent - it's essential for deep research
-4. Check getResearchStatus regularly to track progress
-5. If sourcesScraped < ${Math.ceil(config.maxSources * 0.3)}, keep scraping more URLs
-6. Your final synthesis MUST be comprehensive and cite multiple sources
+${effortRequirements.reportInstructions}
 
-Your research quality depends on ACTUALLY READING the sources and writing a DETAILED synthesis.`;
+## \u26A0\uFE0F CRITICAL RULES
+1. **DO NOT** finish early - use all ${config.maxSteps} available steps
+2. **DO NOT** rely only on search snippets - SCRAPE the actual pages
+3. **DO NOT** skip the scrapeContent tool - it's essential
+4. **DO NOT** write a timeline or list of events - write an analytical REPORT
+5. Check getResearchStatus regularly:
+   - If sourcesScraped < ${Math.ceil(effortRequirements.sourcesToScrape * 0.5)}, keep scraping more URLs
+   - If findingsRecorded < ${Math.ceil(effortRequirements.minFindings * 0.5)}, keep recording findings
+6. Your final synthesis MUST be ${effortRequirements.minWords}+ words with ${effortRequirements.sections}+ sections
+
+## \u{1F3AF} QUALITY STANDARDS FOR ${effort.toUpperCase()} LEVEL
+${effortRequirements.qualityStandards}
+
+Your research quality and report comprehensiveness directly determines success. A ${effort}-level report that does not meet word count and section requirements is UNACCEPTABLE.`;
+}
+function getEffortRequirements(effort, config) {
+  switch (effort) {
+    case "standard":
+      return {
+        summary: "Solid, comprehensive research report with key insights",
+        sourcesToScrape: Math.ceil(config.maxSources * 0.4),
+        searchSteps: 5,
+        searchQueries: 5,
+        minWords: 2500,
+        maxWords: 4e3,
+        sections: 5,
+        minFindings: 10,
+        reportInstructions: `**REQUIRED STRUCTURE:**
+## Executive Summary (300-500 words)
+## 1. Introduction & Background
+## 2. Key Findings (with evidence and citations)
+## 3. Analysis & Implications
+## 4. Challenges & Considerations
+## 5. Conclusions & Recommendations
+## References`,
+        qualityStandards: `- Clear, well-organized presentation
+- Multiple sources cited per major claim
+- Practical, actionable insights
+- Professional tone and formatting`
+      };
+    case "deep":
+      return {
+        summary: "Thorough, multi-perspective analysis with detailed evidence",
+        sourcesToScrape: Math.ceil(config.maxSources * 0.5),
+        searchSteps: 8,
+        searchQueries: 10,
+        minWords: 5e3,
+        maxWords: 8e3,
+        sections: 8,
+        minFindings: 20,
+        reportInstructions: `**REQUIRED STRUCTURE:**
+## Executive Summary (500-700 words - comprehensive overview)
+## 1. Introduction
+### 1.1 Background & Context
+### 1.2 Research Scope
+## 2. Current State of Knowledge
+### 2.1 Primary Findings
+### 2.2 Supporting Evidence
+## 3. In-Depth Analysis
+### 3.1 Trend Analysis
+### 3.2 Comparative Perspectives
+## 4. Multiple Perspectives
+### 4.1 Mainstream Views
+### 4.2 Alternative Perspectives
+### 4.3 Points of Agreement & Disagreement
+## 5. Implications & Impact
+## 6. Challenges & Limitations
+## 7. Future Outlook
+## 8. Conclusions & Recommendations
+## References`,
+        qualityStandards: `- Thorough exploration of multiple angles
+- Detailed evidence with specific data points
+- Analysis of contradictions between sources
+- Nuanced conclusions considering different perspectives
+- Substantial depth in each section (400-700 words per section)`
+      };
+    case "max":
+      return {
+        summary: "Exhaustive, publication-quality analysis leaving no stone unturned",
+        sourcesToScrape: Math.ceil(config.maxSources * 0.6),
+        searchSteps: 12,
+        searchQueries: 15,
+        minWords: 1e4,
+        maxWords: 15e3,
+        sections: 12,
+        minFindings: 30,
+        reportInstructions: `**REQUIRED STRUCTURE (12+ sections):**
+## Executive Summary (800-1200 words - comprehensive synthesis)
+## 1. Introduction
+### 1.1 Research Context & Significance
+### 1.2 Historical Background
+### 1.3 Scope & Methodology
+## 2. Literature Review & Current Knowledge
+### 2.1 Foundational Concepts
+### 2.2 Evolution of Understanding
+## 3. Primary Research Findings
+### 3.1 Core Discoveries
+### 3.2 Supporting Data & Evidence
+## 4. Comprehensive Analysis
+### 4.1 Trend Analysis
+### 4.2 Pattern Recognition
+### 4.3 Causal Relationships
+## 5. Multi-Stakeholder Perspectives
+### 5.1 Expert Opinions
+### 5.2 Industry Perspectives
+### 5.3 Contrarian & Minority Views
+## 6. Contradictions & Debates
+### 6.1 Areas of Disagreement
+### 6.2 Unresolved Questions
+## 7. Case Studies & Examples
+## 8. Implications Analysis
+### 8.1 Short-term Impact
+### 8.2 Long-term Consequences
+### 8.3 Potential Risks
+## 9. Limitations & Research Gaps
+## 10. Future Outlook & Predictions
+## 11. Conclusions (comprehensive synthesis)
+## 12. Strategic Recommendations
+## Appendix: Detailed Source Analysis
+## References`,
+        qualityStandards: `- Publication-quality depth and rigor
+- Exhaustive coverage of all perspectives
+- Detailed analysis of contradictions and debates
+- Specific case studies and examples
+- Statistical analysis where applicable
+- Expert-level synthesis and original insights
+- Substantial depth (700-1200 words per major section)
+- At least 30 unique findings recorded
+- Minority/contrarian views explored`
+      };
+  }
 }
 
 // src/factory.ts
@@ -3376,7 +3568,6 @@ export {
   SynthesisSchema,
   SynthesizerAdapter,
   TimelineEventSchema,
-  VectorlessKnowledgeBaseAdapter,
   createDeepResearch,
   createDeepResearchAgent,
   createDeepResearchTools,
