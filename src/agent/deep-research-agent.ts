@@ -80,6 +80,7 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
         searchType: z.enum(["web", "news"]).default("web"),
       }),
       execute: async ({ query, searchType }) => {
+        console.log(`[DeepResearch] webSearch tool called - query: "${query.slice(0, 50)}...", type: ${searchType}`);
         onProgress?.({
           type: "phase-started",
           timestamp: new Date(),
@@ -89,27 +90,57 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
         });
 
         try {
+          console.log(`[DeepResearch] Calling webSearch.search()...`);
           const response = await webSearch.search(query, {
             maxResults: Math.min(10, Math.ceil(effortConfig.maxSources / 3)),
             searchType,
             timeout: 45000,
             cache: true,
           });
+          console.log(`[DeepResearch] webSearch.search() returned:`, JSON.stringify(response.results).slice(0, 500));
 
           const results = response.results.results || [];
+          console.log(`[DeepResearch] Processing ${results.length} results, first result:`, results[0] ? JSON.stringify(results[0]).slice(0, 200) : 'none');
           
           // Store sources
+          let addedCount = 0;
           for (const result of results) {
-            if (result.url && !state.sources.has(result.url)) {
-              const urlObj = new URL(result.url);
-              state.sources.set(result.url, {
-                url: result.url,
-                title: result.title || urlObj.hostname,
-                domain: urlObj.hostname.replace("www.", ""),
-                snippet: result.snippet,
-              });
+            // Extract real URL from DuckDuckGo redirect URLs if needed
+            let realUrl = result.url;
+            if (realUrl && realUrl.includes('duckduckgo.com/l/?uddg=')) {
+              try {
+                // URL is encoded in the uddg parameter
+                const match = realUrl.match(/uddg=([^&]+)/);
+                if (match) {
+                  realUrl = decodeURIComponent(match[1]);
+                }
+              } catch {
+                // Keep original if decoding fails
+              }
+            }
+            // Also handle protocol-relative URLs
+            if (realUrl && realUrl.startsWith('//')) {
+              realUrl = 'https:' + realUrl;
+            }
+            
+            console.log(`[DeepResearch] Processing URL: ${result.url?.slice(0, 50)} -> ${realUrl?.slice(0, 50)}`);
+            
+            if (realUrl && !state.sources.has(realUrl)) {
+              try {
+                const urlObj = new URL(realUrl);
+                state.sources.set(realUrl, {
+                  url: realUrl,
+                  title: result.title || urlObj.hostname,
+                  domain: urlObj.hostname.replace("www.", ""),
+                  snippet: result.snippet,
+                });
+                addedCount++;
+              } catch (e) {
+                console.log(`[DeepResearch] Invalid URL: ${realUrl}`, e);
+              }
             }
           }
+          console.log(`[DeepResearch] Added ${addedCount} sources, total: ${state.sources.size}`);
 
           return {
             found: results.length,
@@ -218,6 +249,7 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
     stopWhen: stepCountIs(effortConfig.maxSteps),
     maxOutputTokens: maxTokens,
     prepareStep: async ({ stepNumber }) => {
+      console.log(`[DeepResearch] prepareStep called - stepNumber: ${stepNumber}`);
       // All phases: all tools available to let model decide
       // Early phase hints at search, but doesn't restrict
       if (stepNumber <= 3) {
@@ -235,6 +267,8 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
       // Track step count in state
       const stepCount = (state as any).stepCount ?? 0;
       (state as any).stepCount = stepCount + 1;
+      
+      console.log(`[DeepResearch] onStepFinish - step ${stepCount + 1}, sources: ${state.sources.size}, scraped: ${state.scrapedContent.size}`);
       
       onProgress?.({
         type: "progress-update",
@@ -261,6 +295,8 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
         ? `Research query: ${query}\n\nAdditional context: ${context}`
         : `Research query: ${query}`;
 
+      console.log(`[DeepResearch] Starting research - query length: ${query.length}, effort: ${effort}`);
+
       onProgress?.({
         type: "phase-started",
         timestamp: new Date(),
@@ -269,7 +305,9 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
         message: "Starting research...",
       });
 
+      console.log(`[DeepResearch] Calling agent.generate...`);
       const result = await agent.generate({ prompt });
+      console.log(`[DeepResearch] agent.generate completed - text length: ${result.text?.length ?? 0}`);
 
       onProgress?.({
         type: "completed",
