@@ -695,8 +695,9 @@ declare function createDeepResearchAgent(options: DeepResearchAgentOptions): {
             summary: string;
             sourceCount: number;
         }[];
-        lastSummarizedIndex: number;
-        pendingSummaryPromise: Promise<void> | null;
+        summarizedUrls: Set<string>;
+        pendingSummaryPromises: Promise<void>[];
+        batchCounter: number;
         stepCount: number;
     };
     research(query: string, context?: string): Promise<DeepResearchAgentResult>;

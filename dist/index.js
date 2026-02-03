@@ -2816,8 +2816,12 @@ function createDeepResearchAgent(options) {
     startTime: Date.now(),
     // Map-reduce batch summarization
     batchSummaries: [],
-    lastSummarizedIndex: 0,
-    pendingSummaryPromise: null,
+    summarizedUrls: /* @__PURE__ */ new Set(),
+    // Track which URLs have been summarized
+    pendingSummaryPromises: [],
+    // Array of parallel summary promises
+    batchCounter: 0,
+    // Unique batch number counter
     stepCount: 0
   };
   const BATCH_SIZE = 5;
@@ -3101,20 +3105,21 @@ Format as structured bullet points grouped by theme.`;
     onStepFinish: (step) => {
       state.stepCount++;
       console.log(`[DeepResearch] onStepFinish - step ${state.stepCount}, sources: ${state.sources.size}, scraped: ${state.scrapedContent.size}`);
-      const scrapedUrls = Array.from(state.scrapedContent.keys());
-      const newContentCount = scrapedUrls.length - state.lastSummarizedIndex;
-      if (newContentCount >= BATCH_SIZE) {
-        const batchUrls = scrapedUrls.slice(state.lastSummarizedIndex, state.lastSummarizedIndex + BATCH_SIZE);
+      const allScrapedUrls = Array.from(state.scrapedContent.keys());
+      const unsummarizedUrls = allScrapedUrls.filter((url) => !state.summarizedUrls.has(url));
+      if (unsummarizedUrls.length >= BATCH_SIZE) {
+        const batchUrls = unsummarizedUrls.slice(0, BATCH_SIZE);
         const batchContents = batchUrls.map((url) => ({
           url,
           content: state.scrapedContent.get(url) || "",
           title: state.sources.get(url)?.title || new URL(url).hostname
         }));
-        const batchNum = state.batchSummaries.length + 1;
-        state.lastSummarizedIndex += BATCH_SIZE;
+        batchUrls.forEach((url) => state.summarizedUrls.add(url));
+        state.batchCounter++;
+        const batchNum = state.batchCounter;
         console.log(`[DeepResearch] Triggering batch ${batchNum} summarization (${batchContents.length} sources) in background`);
         const summaryPromise = summarizeBatch(batchNum, batchContents);
-        state.pendingSummaryPromise = state.pendingSummaryPromise ? state.pendingSummaryPromise.then(() => summaryPromise) : summaryPromise;
+        state.pendingSummaryPromises.push(summaryPromise);
       }
       onProgress?.({
         type: "progress-update",
@@ -3165,11 +3170,12 @@ Additional context: ${context}` : `Research query: ${query}`;
         phase: "synthesizing",
         message: "Waiting for batch summaries and writing report..."
       });
-      if (state.pendingSummaryPromise) {
-        console.log(`[DeepResearch] Waiting for pending batch summaries...`);
-        await state.pendingSummaryPromise;
+      if (state.pendingSummaryPromises.length > 0) {
+        console.log(`[DeepResearch] Waiting for ${state.pendingSummaryPromises.length} parallel batch summaries...`);
+        await Promise.all(state.pendingSummaryPromises);
       }
-      const remainingUrls = Array.from(state.scrapedContent.keys()).slice(state.lastSummarizedIndex);
+      const allUrls = Array.from(state.scrapedContent.keys());
+      const remainingUrls = allUrls.filter((url) => !state.summarizedUrls.has(url));
       if (remainingUrls.length > 0) {
         console.log(`[DeepResearch] Summarizing final batch of ${remainingUrls.length} remaining sources`);
         const finalBatchContents = remainingUrls.map((url) => ({
@@ -3177,7 +3183,9 @@ Additional context: ${context}` : `Research query: ${query}`;
           content: state.scrapedContent.get(url) || "",
           title: state.sources.get(url)?.title || new URL(url).hostname
         }));
-        await summarizeBatch(state.batchSummaries.length + 1, finalBatchContents);
+        remainingUrls.forEach((url) => state.summarizedUrls.add(url));
+        state.batchCounter++;
+        await summarizeBatch(state.batchCounter, finalBatchContents);
       }
       console.log(`[DeepResearch] Synthesis phase: ${state.batchSummaries.length} batch summaries, ${state.findings.length} findings`);
       const effortRequirements = getEffortRequirements(effort, effortConfig);

@@ -73,8 +73,9 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
     startTime: Date.now(),
     // Map-reduce batch summarization
     batchSummaries: [] as { batchNum: number; summary: string; sourceCount: number }[],
-    lastSummarizedIndex: 0,
-    pendingSummaryPromise: null as Promise<void> | null,
+    summarizedUrls: new Set<string>(), // Track which URLs have been summarized
+    pendingSummaryPromises: [] as Promise<void>[], // Array of parallel summary promises
+    batchCounter: 0, // Unique batch number counter
     stepCount: 0,
   };
 
@@ -407,29 +408,30 @@ Format as structured bullet points grouped by theme.`;
       console.log(`[DeepResearch] onStepFinish - step ${state.stepCount}, sources: ${state.sources.size}, scraped: ${state.scrapedContent.size}`);
 
       // Check if we have enough new scraped content to trigger batch summarization
-      const scrapedUrls = Array.from(state.scrapedContent.keys());
-      const newContentCount = scrapedUrls.length - state.lastSummarizedIndex;
+      const allScrapedUrls = Array.from(state.scrapedContent.keys());
+      const unsummarizedUrls = allScrapedUrls.filter(url => !state.summarizedUrls.has(url));
 
-      if (newContentCount >= BATCH_SIZE) {
-        // Get the new content that hasn't been summarized yet
-        const batchUrls = scrapedUrls.slice(state.lastSummarizedIndex, state.lastSummarizedIndex + BATCH_SIZE);
+      if (unsummarizedUrls.length >= BATCH_SIZE) {
+        // Get the first BATCH_SIZE unsummarized URLs
+        const batchUrls = unsummarizedUrls.slice(0, BATCH_SIZE);
         const batchContents = batchUrls.map(url => ({
           url,
           content: state.scrapedContent.get(url) || '',
           title: state.sources.get(url)?.title || new URL(url).hostname,
         }));
 
-        const batchNum = state.batchSummaries.length + 1;
-        state.lastSummarizedIndex += BATCH_SIZE;
+        // Mark these URLs as summarized BEFORE starting the async operation
+        batchUrls.forEach(url => state.summarizedUrls.add(url));
+
+        state.batchCounter++;
+        const batchNum = state.batchCounter;
 
         console.log(`[DeepResearch] Triggering batch ${batchNum} summarization (${batchContents.length} sources) in background`);
 
         // Fire-and-forget: start summarization in parallel
-        // We track the promise but don't await it here
+        // We push to array and wait for all at the end
         const summaryPromise = summarizeBatch(batchNum, batchContents);
-        state.pendingSummaryPromise = state.pendingSummaryPromise
-          ? state.pendingSummaryPromise.then(() => summaryPromise)
-          : summaryPromise;
+        state.pendingSummaryPromises.push(summaryPromise);
       }
 
       onProgress?.({
@@ -491,14 +493,15 @@ Format as structured bullet points grouped by theme.`;
         message: "Waiting for batch summaries and writing report...",
       });
 
-      // Wait for any pending batch summarizations to complete
-      if (state.pendingSummaryPromise) {
-        console.log(`[DeepResearch] Waiting for pending batch summaries...`);
-        await state.pendingSummaryPromise;
+      // Wait for ALL pending batch summarizations to complete (they run in parallel)
+      if (state.pendingSummaryPromises.length > 0) {
+        console.log(`[DeepResearch] Waiting for ${state.pendingSummaryPromises.length} parallel batch summaries...`);
+        await Promise.all(state.pendingSummaryPromises);
       }
 
       // Summarize any remaining un-summarized content
-      const remainingUrls = Array.from(state.scrapedContent.keys()).slice(state.lastSummarizedIndex);
+      const allUrls = Array.from(state.scrapedContent.keys());
+      const remainingUrls = allUrls.filter(url => !state.summarizedUrls.has(url));
       if (remainingUrls.length > 0) {
         console.log(`[DeepResearch] Summarizing final batch of ${remainingUrls.length} remaining sources`);
         const finalBatchContents = remainingUrls.map(url => ({
@@ -506,7 +509,9 @@ Format as structured bullet points grouped by theme.`;
           content: state.scrapedContent.get(url) || '',
           title: state.sources.get(url)?.title || new URL(url).hostname,
         }));
-        await summarizeBatch(state.batchSummaries.length + 1, finalBatchContents);
+        remainingUrls.forEach(url => state.summarizedUrls.add(url));
+        state.batchCounter++;
+        await summarizeBatch(state.batchCounter, finalBatchContents);
       }
 
       console.log(`[DeepResearch] Synthesis phase: ${state.batchSummaries.length} batch summaries, ${state.findings.length} findings`);
