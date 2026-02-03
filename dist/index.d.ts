@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, V as VectorlessKnowledgeBasePort, F as VectorlessDocument, H as VectorlessIndexOptions, I as VectorlessQueryOptions, J as VectorlessQueryResult, N as OrchestratorPorts, P as ResearchEvent, Q as ResearchResult } from './tools-Jezl3_OW.js';
-export { aw as BaseEventSchema, as as ChartConfig, ar as ChartConfigSchema, ag as CitationSchema, aN as Claim, aH as CompletedEventSchema, aj as ConflictSchema, aO as ContentQuality, aQ as DEFAULT_GRAPH_OPTIONS, aP as DEFAULT_RANKING_WEIGHTS, aR as DEFAULT_SYNTHESIS_OPTIONS, W as EFFORT_PRESETS, X as EffortConfigSchema, U as EffortLevelSchema, a8 as EntitySchema, a7 as EntityType, a6 as EntityTypeSchema, aG as ErrorEventSchema, aD as FindingDiscoveredEventSchema, ai as KeyFindingSchema, ac as KnowledgeGraphSchema, $ as MediaItem, _ as MediaItemSchema, ad as MindMapNode, ae as MindMapNodeSchema, af as MindMapSchema, aT as OrchestratorConfig, ay as PhaseCompletedEventSchema, aJ as PhaseStartedEvent, ax as PhaseStartedEventSchema, aL as ProgressUpdateEvent, aE as ProgressUpdateEventSchema, aM as QualityCheckEvent, aF as QualityCheckEventSchema, aq as QualityScore, ap as QualityScoreSchema, a1 as RankedSourceSchema, ab as RelationshipSchema, aa as RelationshipType, a9 as RelationshipTypeSchema, aI as ResearchEventSchema, aS as ResearchOrchestrator, a5 as ResearchQuerySchema, av as ResearchResultSchema, ao as ResearchStats, an as ResearchStatsSchema, am as ResearchStatus, al as ResearchStatusSchema, a3 as SearchStrategy, a2 as SearchStrategySchema, ah as SectionSchema, aC as SourceExtractedEventSchema, aB as SourceFoundEventSchema, a0 as SourceSchema, Z as SourceType, Y as SourceTypeSchema, aA as StepCompletedEventSchema, aK as StepStartedEvent, az as StepStartedEventSchema, a4 as SubQuerySchema, ak as SynthesisSchema, au as TimelineEvent, at as TimelineEventSchema, T as createDeepResearchTools } from './tools-Jezl3_OW.js';
+import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, V as VectorlessKnowledgeBasePort, F as VectorlessDocument, H as VectorlessIndexOptions, I as VectorlessQueryOptions, J as VectorlessQueryResult, N as OrchestratorPorts, P as ResearchEvent, Q as ResearchResult } from './tools--55Iqxju.js';
+export { aw as BaseEventSchema, as as ChartConfig, ar as ChartConfigSchema, ag as CitationSchema, aN as Claim, aH as CompletedEventSchema, aj as ConflictSchema, aO as ContentQuality, aQ as DEFAULT_GRAPH_OPTIONS, aP as DEFAULT_RANKING_WEIGHTS, aR as DEFAULT_SYNTHESIS_OPTIONS, W as EFFORT_PRESETS, X as EffortConfigSchema, U as EffortLevelSchema, a8 as EntitySchema, a7 as EntityType, a6 as EntityTypeSchema, aG as ErrorEventSchema, aD as FindingDiscoveredEventSchema, ai as KeyFindingSchema, ac as KnowledgeGraphSchema, $ as MediaItem, _ as MediaItemSchema, ad as MindMapNode, ae as MindMapNodeSchema, af as MindMapSchema, aT as OrchestratorConfig, ay as PhaseCompletedEventSchema, aJ as PhaseStartedEvent, ax as PhaseStartedEventSchema, aL as ProgressUpdateEvent, aE as ProgressUpdateEventSchema, aM as QualityCheckEvent, aF as QualityCheckEventSchema, aq as QualityScore, ap as QualityScoreSchema, a1 as RankedSourceSchema, ab as RelationshipSchema, aa as RelationshipType, a9 as RelationshipTypeSchema, aI as ResearchEventSchema, aS as ResearchOrchestrator, a5 as ResearchQuerySchema, av as ResearchResultSchema, ao as ResearchStats, an as ResearchStatsSchema, am as ResearchStatus, al as ResearchStatusSchema, a3 as SearchStrategy, a2 as SearchStrategySchema, ah as SectionSchema, aC as SourceExtractedEventSchema, aB as SourceFoundEventSchema, a0 as SourceSchema, Z as SourceType, Y as SourceTypeSchema, aA as StepCompletedEventSchema, aK as StepStartedEvent, az as StepStartedEventSchema, a4 as SubQuerySchema, ak as SynthesisSchema, au as TimelineEvent, at as TimelineEventSchema, T as createDeepResearchTools } from './tools--55Iqxju.js';
 import * as ai from 'ai';
 import { LanguageModel, embed, ToolLoopAgent } from 'ai';
 
@@ -12,11 +12,11 @@ import { LanguageModel, embed, ToolLoopAgent } from 'ai';
  */
 
 declare const ResearchPhaseSchema: z.ZodEnum<{
-    synthesis: "synthesis";
     "query-decomposition": "query-decomposition";
     "source-discovery": "source-discovery";
     "content-extraction": "content-extraction";
     analysis: "analysis";
+    synthesis: "synthesis";
     visualization: "visualization";
 }>;
 type ResearchPhase = z.infer<typeof ResearchPhaseSchema>;
@@ -41,10 +41,10 @@ type QualityScoringWeights = z.infer<typeof QualityScoringWeightsSchema>;
 declare const DEFAULT_SCORING_WEIGHTS: QualityScoringWeights;
 declare const CredibilityTierSchema: z.ZodEnum<{
     academic: "academic";
-    technical: "technical";
-    general: "general";
     government: "government";
     "major-news": "major-news";
+    technical: "technical";
+    general: "general";
 }>;
 type CredibilityTier = z.infer<typeof CredibilityTierSchema>;
 interface CredibilityConfig {
