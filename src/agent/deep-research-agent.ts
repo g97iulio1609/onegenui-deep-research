@@ -18,6 +18,8 @@ export interface DeepResearchAgentOptions {
   model: LanguageModel;
   effort: EffortLevel;
   onProgress?: (event: ResearchEvent) => void;
+  /** Callback to stream UI patches directly to frontend */
+  onPatch?: (patch: string) => void;
   abortSignal?: AbortSignal;
   maxTokens?: number;
 }
@@ -36,6 +38,8 @@ export interface DeepResearchAgentResult {
     durationMs: number;
   };
   quality: number;
+  /** Number of UI patches streamed during synthesis */
+  patchesStreamed: number;
 }
 
 // Default max tokens if not configured
@@ -59,7 +63,7 @@ function getWebSearchUseCase(): WebSearchUseCase {
  * Create a deep research agent using ToolLoopAgent
  */
 export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
-  const { model, effort, onProgress, maxTokens = DEFAULT_MAX_TOKENS } = options;
+  const { model, effort, onProgress, onPatch, maxTokens = DEFAULT_MAX_TOKENS } = options;
   const effortConfig = EFFORT_PRESETS[effort];
 
   // Get web search service
@@ -81,6 +85,8 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
 
   // Configuration for batch summarization
   const BATCH_SIZE = 5; // Summarize every 5 scraped sources
+  const MAX_CONTENT_PER_SOURCE = 5000; // Allow longer context per source
+  const SUMMARY_TARGET_CHARS = 5000;
 
   // Function to summarize a batch of content in background
   const summarizeBatch = async (batchNum: number, contents: Array<{ url: string; content: string; title: string }>) => {
@@ -89,7 +95,7 @@ export function createDeepResearchAgent(options: DeepResearchAgentOptions) {
     console.log(`[DeepResearch] Starting batch ${batchNum} summarization (${contents.length} sources)...`);
 
     const contentText = contents.map((c, i) =>
-      `### Source ${i + 1}: ${c.title}\nURL: ${c.url}\n${c.content.slice(0, 4000)}\n`
+      `### Source ${i + 1}: ${c.title}\nURL: ${c.url}\n${c.content.slice(0, MAX_CONTENT_PER_SOURCE)}\n`
     ).join('\n---\n');
 
     const summaryPrompt = `You are extracting key information from research sources.
@@ -138,6 +144,16 @@ Format as structured bullet points grouped by theme.`;
       }),
       execute: async ({ query, searchType }) => {
         console.log(`[DeepResearch] webSearch tool called - query: "${query.slice(0, 50)}...", type: ${searchType}`);
+        if (state.sources.size >= effortConfig.maxSources) {
+          console.log(
+            `[DeepResearch] Source limit reached (${state.sources.size}/${effortConfig.maxSources}), skipping search`,
+          );
+          return {
+            found: 0,
+            scraped: state.scrapedContent.size,
+            sources: [],
+          };
+        }
         onProgress?.({
           type: "phase-started",
           timestamp: new Date(),
@@ -148,8 +164,15 @@ Format as structured bullet points grouped by theme.`;
 
         try {
           console.log(`[DeepResearch] Calling webSearch.search()...`);
+          const remainingSlots = Math.max(
+            0,
+            effortConfig.maxSources - state.sources.size,
+          );
           const response = await webSearch.search(query, {
-            maxResults: Math.min(10, Math.ceil(effortConfig.maxSources / 3)),
+            maxResults: Math.max(
+              1,
+              Math.min(remainingSlots, Math.min(10, Math.ceil(effortConfig.maxSources / 3))),
+            ),
             searchType,
             timeout: 45000,
             cache: true,
@@ -163,6 +186,8 @@ Format as structured bullet points grouped by theme.`;
           let addedCount = 0;
           const newUrls: string[] = [];
           for (const result of results) {
+            if (state.sources.size >= effortConfig.maxSources) break;
+            if (addedCount >= remainingSlots) break;
             // Extract real URL from DuckDuckGo redirect URLs if needed
             let realUrl = result.url;
             if (realUrl && realUrl.includes('duckduckgo.com/l/?uddg=')) {
@@ -183,7 +208,7 @@ Format as structured bullet points grouped by theme.`;
 
             console.log(`[DeepResearch] Processing URL: ${result.url?.slice(0, 50)} -> ${realUrl?.slice(0, 50)}`);
 
-            if (realUrl && !state.sources.has(realUrl)) {
+            if (realUrl && !state.sources.has(realUrl) && state.sources.size < effortConfig.maxSources) {
               try {
                 const urlObj = new URL(realUrl);
                 state.sources.set(realUrl, {
@@ -351,17 +376,31 @@ Format as structured bullet points grouped by theme.`;
       const sourcesFound = state.sources.size;
       const sourcesScraped = state.scrapedContent.size;
       const scrapeRatio = sourcesFound > 0 ? sourcesScraped / sourcesFound : 0;
-      const minScrapesRequired = Math.ceil(effortConfig.maxSources * 0.5); // At least 50% of sources
+      
+      // Get effort-specific requirements
+      const effortReqs = getEffortRequirements(effort, effortConfig);
+      const minScrapesRequired = effortReqs.sourcesToScrape;
+      const searchPhaseEnd = effortReqs.searchSteps;
 
       // Dynamic phase limits based on maxSteps
-      const searchPhaseEnd = 5;
       const forceScrapePhaseEnd = Math.floor(effortConfig.maxSteps * 0.6); // 60% of steps for mandatory scraping
       const continueScrapingEnd = Math.floor(effortConfig.maxSteps * 0.8); // 80% of steps can still force scrape
 
-      console.log(`[DeepResearch] prepareStep - step: ${stepNumber}, sources: ${sourcesFound}, scraped: ${sourcesScraped}, ratio: ${(scrapeRatio * 100).toFixed(1)}%`);
+      console.log(`[DeepResearch] prepareStep - step: ${stepNumber}/${effortConfig.maxSteps}, effort: ${effort}, sources: ${sourcesFound}/${effortConfig.maxSources}, scraped: ${sourcesScraped}/${minScrapesRequired} required, ratio: ${(scrapeRatio * 100).toFixed(1)}%`);
 
-      // Phase 1: Initial search phase (first 5 steps) - force search to build source pool
-      if (stepNumber <= searchPhaseEnd) {
+      // STOP EARLY if we have enough sources - don't over-collect
+      if (sourcesFound >= effortConfig.maxSources && sourcesScraped >= minScrapesRequired) {
+        console.log(`[DeepResearch] Sources limit reached (${sourcesFound}/${effortConfig.maxSources}), moving to synthesis phase`);
+        // Return empty to signal stop - will trigger synthesis
+        return {
+          activeTools: ["getResearchStatus"],
+          stopReason: "sources_limit_reached"
+        };
+      }
+
+      // Phase 1: Initial search phase - force search to build source pool
+      // BUT stop searching if we already have enough sources
+      if (stepNumber <= searchPhaseEnd && sourcesFound < effortConfig.maxSources) {
         console.log(`[DeepResearch] Phase 1: Forcing search (step ${stepNumber}/${searchPhaseEnd})`);
         return {
           activeTools: ["webSearch", "getResearchStatus"],
@@ -568,17 +607,100 @@ CRITICAL INSTRUCTIONS:
       console.log(`[DeepResearch] Synthesis prompt length: ${synthesisPrompt.length} chars`);
 
       const synthesisStart = Date.now();
-      let synthesisResult;
+      let patchesStreamed = 0;
+      let fullText = "";
+
+      // Generate synthesis using simple generateText (more reliable than structured output with large prompts)
       try {
-        synthesisResult = await generateText({
+        const synthesisResult = await generateText({
           model,
           prompt: synthesisPrompt,
           maxOutputTokens: maxTokens,
         });
-        console.log(`[DeepResearch] Synthesis completed in ${Date.now() - synthesisStart}ms - text length: ${synthesisResult.text?.length ?? 0}`);
+        fullText = synthesisResult.text ?? "";
+        console.log(`[DeepResearch] Synthesis completed in ${Date.now() - synthesisStart}ms - text length: ${fullText.length}`);
       } catch (synthError) {
         console.error(`[DeepResearch] Synthesis FAILED:`, synthError);
         throw synthError;
+      }
+
+      // Parse the markdown report into structured sections for UI
+      const sections: Array<{ title: string; content: string }> = [];
+      const lines = fullText.split('\n');
+      let currentTitle = "";
+      let currentContent: string[] = [];
+      let reportTitle = "";
+      let reportSummary = "";
+
+      for (const line of lines) {
+        if (line.startsWith('# ') && !reportTitle) {
+          reportTitle = line.slice(2).trim();
+          continue;
+        }
+        if (line.startsWith('## ')) {
+          if (currentTitle) {
+            sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
+          }
+          currentTitle = line.slice(3).trim();
+          currentContent = [];
+        } else if (currentTitle) {
+          currentContent.push(line);
+        }
+      }
+      // Don't forget last section
+      if (currentTitle && currentContent.length > 0) {
+        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() });
+      }
+      if (!reportTitle) {
+        reportTitle = query;
+      }
+      if (!reportSummary && sections.length > 0) {
+        const summarySection = sections.find((s) => s.title.toLowerCase().includes("summary"));
+        if (summarySection) {
+          reportSummary = summarySection.content;
+        }
+      }
+      if (!reportSummary && sections.length > 0) {
+        reportSummary = sections[0]?.content ?? "";
+      }
+
+      // Stream patches to frontend if callback provided
+      if (onPatch && sections.length > 0) {
+        console.log(`[DeepResearch] Streaming ${sections.length} sections as ResearchReport patch`);
+        const sources = Array.from(state.sources.values()).slice(0, 30).map((s, index) => ({
+          id: String(index + 1),
+          title: s.title,
+          url: s.url,
+          domain: s.domain,
+        }));
+        const reportPatch = JSON.stringify({
+          op: "add",
+          path: "/elements/research_report",
+          value: {
+            key: "research_report",
+            type: "ResearchReport",
+            props: {
+              title: reportTitle || "Research Report",
+              summary: reportSummary,
+              sections: sections.map(s => ({
+                title: s.title,
+                content: s.content,
+              })),
+              sources,
+              searchQuery: query,
+              totalResults: state.sources.size,
+            },
+          },
+        });
+        const rootPatch = JSON.stringify({
+          op: "set",
+          path: "/root",
+          value: "research_report",
+        });
+        onPatch(reportPatch);
+        onPatch(rootPatch);
+        patchesStreamed += 2;
+        console.log(`[DeepResearch] Streamed ResearchReport patch with ${sections.length} sections`);
       }
 
       onProgress?.({
@@ -590,7 +712,7 @@ CRITICAL INSTRUCTIONS:
       });
 
       return {
-        synthesis: synthesisResult.text,
+        synthesis: fullText,
         sources: Array.from(state.sources.values()),
         stats: {
           totalSources: state.sources.size,
@@ -598,6 +720,7 @@ CRITICAL INSTRUCTIONS:
           durationMs: Date.now() - state.startTime,
         },
         quality: Math.min(1, state.findings.length / 10),
+        patchesStreamed,
       };
     },
   };
@@ -804,4 +927,3 @@ function getEffortRequirements(effort: EffortLevel, config: EffortConfig): Effor
       };
   }
 }
-

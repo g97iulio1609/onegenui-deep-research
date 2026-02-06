@@ -6,7 +6,7 @@ import {
   QueryDecomposer,
   ResearchOrchestrator,
   createDeepResearchTools
-} from "./chunk-4B2B3SUT.js";
+} from "./chunk-WUGF3KO6.js";
 
 // src/config.ts
 import { z } from "zod";
@@ -2806,7 +2806,7 @@ function getWebSearchUseCase() {
   return webSearchInstance;
 }
 function createDeepResearchAgent(options) {
-  const { model, effort, onProgress, maxTokens = DEFAULT_MAX_TOKENS } = options;
+  const { model, effort, onProgress, onPatch, maxTokens = DEFAULT_MAX_TOKENS } = options;
   const effortConfig = EFFORT_PRESETS[effort];
   const webSearch = getWebSearchUseCase();
   const state = {
@@ -2825,13 +2825,15 @@ function createDeepResearchAgent(options) {
     stepCount: 0
   };
   const BATCH_SIZE = 5;
+  const MAX_CONTENT_PER_SOURCE = 5e3;
+  const SUMMARY_TARGET_CHARS = 5e3;
   const summarizeBatch = async (batchNum, contents) => {
     if (contents.length === 0) return;
     console.log(`[DeepResearch] Starting batch ${batchNum} summarization (${contents.length} sources)...`);
     const contentText = contents.map(
       (c, i) => `### Source ${i + 1}: ${c.title}
 URL: ${c.url}
-${c.content.slice(0, 4e3)}
+${c.content.slice(0, MAX_CONTENT_PER_SOURCE)}
 `
     ).join("\n---\n");
     const summaryPrompt = `You are extracting key information from research sources.
@@ -2876,6 +2878,16 @@ Format as structured bullet points grouped by theme.`;
       }),
       execute: async ({ query, searchType }) => {
         console.log(`[DeepResearch] webSearch tool called - query: "${query.slice(0, 50)}...", type: ${searchType}`);
+        if (state.sources.size >= effortConfig.maxSources) {
+          console.log(
+            `[DeepResearch] Source limit reached (${state.sources.size}/${effortConfig.maxSources}), skipping search`
+          );
+          return {
+            found: 0,
+            scraped: state.scrapedContent.size,
+            sources: []
+          };
+        }
         onProgress?.({
           type: "phase-started",
           timestamp: /* @__PURE__ */ new Date(),
@@ -2885,8 +2897,15 @@ Format as structured bullet points grouped by theme.`;
         });
         try {
           console.log(`[DeepResearch] Calling webSearch.search()...`);
+          const remainingSlots = Math.max(
+            0,
+            effortConfig.maxSources - state.sources.size
+          );
           const response = await webSearch.search(query, {
-            maxResults: Math.min(10, Math.ceil(effortConfig.maxSources / 3)),
+            maxResults: Math.max(
+              1,
+              Math.min(remainingSlots, Math.min(10, Math.ceil(effortConfig.maxSources / 3)))
+            ),
             searchType,
             timeout: 45e3,
             cache: true
@@ -2897,6 +2916,8 @@ Format as structured bullet points grouped by theme.`;
           let addedCount = 0;
           const newUrls = [];
           for (const result of results) {
+            if (state.sources.size >= effortConfig.maxSources) break;
+            if (addedCount >= remainingSlots) break;
             let realUrl = result.url;
             if (realUrl && realUrl.includes("duckduckgo.com/l/?uddg=")) {
               try {
@@ -2911,7 +2932,7 @@ Format as structured bullet points grouped by theme.`;
               realUrl = "https:" + realUrl;
             }
             console.log(`[DeepResearch] Processing URL: ${result.url?.slice(0, 50)} -> ${realUrl?.slice(0, 50)}`);
-            if (realUrl && !state.sources.has(realUrl)) {
+            if (realUrl && !state.sources.has(realUrl) && state.sources.size < effortConfig.maxSources) {
               try {
                 const urlObj = new URL(realUrl);
                 state.sources.set(realUrl, {
@@ -3065,12 +3086,20 @@ Format as structured bullet points grouped by theme.`;
       const sourcesFound = state.sources.size;
       const sourcesScraped = state.scrapedContent.size;
       const scrapeRatio = sourcesFound > 0 ? sourcesScraped / sourcesFound : 0;
-      const minScrapesRequired = Math.ceil(effortConfig.maxSources * 0.5);
-      const searchPhaseEnd = 5;
+      const effortReqs = getEffortRequirements(effort, effortConfig);
+      const minScrapesRequired = effortReqs.sourcesToScrape;
+      const searchPhaseEnd = effortReqs.searchSteps;
       const forceScrapePhaseEnd = Math.floor(effortConfig.maxSteps * 0.6);
       const continueScrapingEnd = Math.floor(effortConfig.maxSteps * 0.8);
-      console.log(`[DeepResearch] prepareStep - step: ${stepNumber}, sources: ${sourcesFound}, scraped: ${sourcesScraped}, ratio: ${(scrapeRatio * 100).toFixed(1)}%`);
-      if (stepNumber <= searchPhaseEnd) {
+      console.log(`[DeepResearch] prepareStep - step: ${stepNumber}/${effortConfig.maxSteps}, effort: ${effort}, sources: ${sourcesFound}/${effortConfig.maxSources}, scraped: ${sourcesScraped}/${minScrapesRequired} required, ratio: ${(scrapeRatio * 100).toFixed(1)}%`);
+      if (sourcesFound >= effortConfig.maxSources && sourcesScraped >= minScrapesRequired) {
+        console.log(`[DeepResearch] Sources limit reached (${sourcesFound}/${effortConfig.maxSources}), moving to synthesis phase`);
+        return {
+          activeTools: ["getResearchStatus"],
+          stopReason: "sources_limit_reached"
+        };
+      }
+      if (stepNumber <= searchPhaseEnd && sourcesFound < effortConfig.maxSources) {
         console.log(`[DeepResearch] Phase 1: Forcing search (step ${stepNumber}/${searchPhaseEnd})`);
         return {
           activeTools: ["webSearch", "getResearchStatus"],
@@ -3230,17 +3259,92 @@ CRITICAL INSTRUCTIONS:
 4. Each section must be substantial (400+ words)`;
       console.log(`[DeepResearch] Synthesis prompt length: ${synthesisPrompt.length} chars`);
       const synthesisStart = Date.now();
-      let synthesisResult;
+      let patchesStreamed = 0;
+      let fullText = "";
       try {
-        synthesisResult = await generateText2({
+        const synthesisResult = await generateText2({
           model,
           prompt: synthesisPrompt,
           maxOutputTokens: maxTokens
         });
-        console.log(`[DeepResearch] Synthesis completed in ${Date.now() - synthesisStart}ms - text length: ${synthesisResult.text?.length ?? 0}`);
+        fullText = synthesisResult.text ?? "";
+        console.log(`[DeepResearch] Synthesis completed in ${Date.now() - synthesisStart}ms - text length: ${fullText.length}`);
       } catch (synthError) {
         console.error(`[DeepResearch] Synthesis FAILED:`, synthError);
         throw synthError;
+      }
+      const sections = [];
+      const lines = fullText.split("\n");
+      let currentTitle = "";
+      let currentContent = [];
+      let reportTitle = "";
+      let reportSummary = "";
+      for (const line of lines) {
+        if (line.startsWith("# ") && !reportTitle) {
+          reportTitle = line.slice(2).trim();
+          continue;
+        }
+        if (line.startsWith("## ")) {
+          if (currentTitle) {
+            sections.push({ title: currentTitle, content: currentContent.join("\n").trim() });
+          }
+          currentTitle = line.slice(3).trim();
+          currentContent = [];
+        } else if (currentTitle) {
+          currentContent.push(line);
+        }
+      }
+      if (currentTitle && currentContent.length > 0) {
+        sections.push({ title: currentTitle, content: currentContent.join("\n").trim() });
+      }
+      if (!reportTitle) {
+        reportTitle = query;
+      }
+      if (!reportSummary && sections.length > 0) {
+        const summarySection = sections.find((s) => s.title.toLowerCase().includes("summary"));
+        if (summarySection) {
+          reportSummary = summarySection.content;
+        }
+      }
+      if (!reportSummary && sections.length > 0) {
+        reportSummary = sections[0]?.content ?? "";
+      }
+      if (onPatch && sections.length > 0) {
+        console.log(`[DeepResearch] Streaming ${sections.length} sections as ResearchReport patch`);
+        const sources = Array.from(state.sources.values()).slice(0, 30).map((s, index) => ({
+          id: String(index + 1),
+          title: s.title,
+          url: s.url,
+          domain: s.domain
+        }));
+        const reportPatch = JSON.stringify({
+          op: "add",
+          path: "/elements/research_report",
+          value: {
+            key: "research_report",
+            type: "ResearchReport",
+            props: {
+              title: reportTitle || "Research Report",
+              summary: reportSummary,
+              sections: sections.map((s) => ({
+                title: s.title,
+                content: s.content
+              })),
+              sources,
+              searchQuery: query,
+              totalResults: state.sources.size
+            }
+          }
+        });
+        const rootPatch = JSON.stringify({
+          op: "set",
+          path: "/root",
+          value: "research_report"
+        });
+        onPatch(reportPatch);
+        onPatch(rootPatch);
+        patchesStreamed += 2;
+        console.log(`[DeepResearch] Streamed ResearchReport patch with ${sections.length} sections`);
       }
       onProgress?.({
         type: "completed",
@@ -3250,14 +3354,15 @@ CRITICAL INSTRUCTIONS:
         finalQuality: state.findings.length > 0 ? 0.8 : 0.5
       });
       return {
-        synthesis: synthesisResult.text,
+        synthesis: fullText,
         sources: Array.from(state.sources.values()),
         stats: {
           totalSources: state.sources.size,
           sourcesProcessed: state.scrapedContent.size,
           durationMs: Date.now() - state.startTime
         },
-        quality: Math.min(1, state.findings.length / 10)
+        quality: Math.min(1, state.findings.length / 10),
+        patchesStreamed
       };
     }
   };
@@ -3457,6 +3562,7 @@ function createDeepResearch(factoryOptions) {
         effort: options.effort,
         abortSignal: options.abortSignal,
         onProgress: options.onProgress,
+        onPatch: options.onPatch,
         maxTokens
       });
       return agent.research(query, options.context);
@@ -3468,6 +3574,7 @@ function createDeepResearch(factoryOptions) {
         effort: options.effort,
         abortSignal: options.abortSignal,
         maxTokens,
+        onPatch: options.onPatch,
         onProgress: (event) => {
           events.push(event);
         }

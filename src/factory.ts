@@ -17,6 +17,7 @@ export interface DeepResearchOptions {
   context?: string;
   abortSignal?: AbortSignal;
   onProgress?: (event: ResearchEvent) => void;
+  onPatch?: (patch: string) => void;
 }
 
 export interface DeepResearchInstance {
@@ -47,6 +48,7 @@ export function createDeepResearch(
         effort: options.effort,
         abortSignal: options.abortSignal,
         onProgress: options.onProgress,
+        onPatch: options.onPatch,
         maxTokens,
       });
       
@@ -61,6 +63,7 @@ export function createDeepResearch(
         effort: options.effort,
         abortSignal: options.abortSignal,
         maxTokens,
+        onPatch: options.onPatch,
         onProgress: (event) => {
           events.push(event);
         },

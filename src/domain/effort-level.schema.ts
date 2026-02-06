@@ -39,7 +39,7 @@ export const EFFORT_PRESETS: Record<EffortLevel, EffortConfig> = {
     level: "deep",
     maxSteps: 150,
     timeoutMs: 1_200_000, // 20 min
-    maxSources: 80,
+    maxSources: 75,
     parallelism: 20,
     recursionDepth: 2,
     enableAuth: true,
@@ -51,7 +51,7 @@ export const EFFORT_PRESETS: Record<EffortLevel, EffortConfig> = {
     level: "max",
     maxSteps: 300,
     timeoutMs: 3_600_000, // 60 min
-    maxSources: 150,
+    maxSources: 100,
     parallelism: 25,
     recursionDepth: 3,
     enableAuth: true,
