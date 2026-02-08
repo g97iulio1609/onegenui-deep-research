@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, F as OrchestratorPorts, H as ResearchEvent, I as ResearchResult } from './tools-CUQflq9A.js';
-export { ar as BaseEventSchema, an as ChartConfig, am as ChartConfigSchema, ab as CitationSchema, aI as Claim, aC as CompletedEventSchema, ae as ConflictSchema, aJ as ContentQuality, aL as DEFAULT_GRAPH_OPTIONS, aK as DEFAULT_RANKING_WEIGHTS, aM as DEFAULT_SYNTHESIS_OPTIONS, P as EFFORT_PRESETS, Q as EffortConfigSchema, N as EffortLevelSchema, a3 as EntitySchema, a2 as EntityType, a1 as EntityTypeSchema, aB as ErrorEventSchema, ay as FindingDiscoveredEventSchema, ad as KeyFindingSchema, a7 as KnowledgeGraphSchema, W as MediaItem, V as MediaItemSchema, a8 as MindMapNode, a9 as MindMapNodeSchema, aa as MindMapSchema, aO as OrchestratorConfig, at as PhaseCompletedEventSchema, aE as PhaseStartedEvent, as as PhaseStartedEventSchema, aG as ProgressUpdateEvent, az as ProgressUpdateEventSchema, aH as QualityCheckEvent, aA as QualityCheckEventSchema, al as QualityScore, ak as QualityScoreSchema, Y as RankedSourceSchema, a6 as RelationshipSchema, a5 as RelationshipType, a4 as RelationshipTypeSchema, aD as ResearchEventSchema, aN as ResearchOrchestrator, a0 as ResearchQuerySchema, aq as ResearchResultSchema, aj as ResearchStats, ai as ResearchStatsSchema, ah as ResearchStatus, ag as ResearchStatusSchema, _ as SearchStrategy, Z as SearchStrategySchema, ac as SectionSchema, ax as SourceExtractedEventSchema, aw as SourceFoundEventSchema, X as SourceSchema, U as SourceType, T as SourceTypeSchema, av as StepCompletedEventSchema, aF as StepStartedEvent, au as StepStartedEventSchema, $ as SubQuerySchema, af as SynthesisSchema, ap as TimelineEvent, ao as TimelineEventSchema, J as createDeepResearchTools } from './tools-CUQflq9A.js';
+import { E as EffortLevel, a as EffortConfig, C as ContentScraperPort, S as ScrapeOptions, b as ScrapedContent, c as ScrapeProgress, D as DeepSearchPort, d as SearchOptions, e as SearchResult, f as SubQuery, g as SearchProgress, h as SourceRankerPort, R as RankingWeights, i as Source, j as RankingCriteria, k as RankedSource, l as ContentAnalyzerPort, L as LLMPort, A as AnalysisContext, m as AnalyzedContent, n as Entity, o as Relationship, p as Conflict, K as KeyFinding, q as SynthesizerPort, r as ResearchQuery, s as KnowledgeGraph, t as SynthesisOptions, u as SynthesisEvent, v as Synthesis, O as OutlineSection, w as Section, x as Citation, y as KnowledgeGraphPort, G as GraphBuildOptions, M as MindMap, z as LLMOptions, B as LLMResponse, F as OrchestratorPorts, H as ResearchEvent, I as ResearchResult } from './tools-CpbT0z40.js';
+export { ar as BaseEventSchema, an as ChartConfig, am as ChartConfigSchema, ab as CitationSchema, aI as Claim, aC as CompletedEventSchema, ae as ConflictSchema, aJ as ContentQuality, aL as DEFAULT_GRAPH_OPTIONS, aK as DEFAULT_RANKING_WEIGHTS, aM as DEFAULT_SYNTHESIS_OPTIONS, P as EFFORT_PRESETS, Q as EffortConfigSchema, N as EffortLevelSchema, a3 as EntitySchema, a2 as EntityType, a1 as EntityTypeSchema, aB as ErrorEventSchema, ay as FindingDiscoveredEventSchema, ad as KeyFindingSchema, a7 as KnowledgeGraphSchema, W as MediaItem, V as MediaItemSchema, a8 as MindMapNode, a9 as MindMapNodeSchema, aa as MindMapSchema, aO as OrchestratorConfig, at as PhaseCompletedEventSchema, aE as PhaseStartedEvent, as as PhaseStartedEventSchema, aG as ProgressUpdateEvent, az as ProgressUpdateEventSchema, aH as QualityCheckEvent, aA as QualityCheckEventSchema, al as QualityScore, ak as QualityScoreSchema, Y as RankedSourceSchema, a6 as RelationshipSchema, a5 as RelationshipType, a4 as RelationshipTypeSchema, aD as ResearchEventSchema, aN as ResearchOrchestrator, a0 as ResearchQuerySchema, aq as ResearchResultSchema, aj as ResearchStats, ai as ResearchStatsSchema, ah as ResearchStatus, ag as ResearchStatusSchema, _ as SearchStrategy, Z as SearchStrategySchema, ac as SectionSchema, ax as SourceExtractedEventSchema, aw as SourceFoundEventSchema, X as SourceSchema, U as SourceType, T as SourceTypeSchema, av as StepCompletedEventSchema, aF as StepStartedEvent, au as StepStartedEventSchema, $ as SubQuerySchema, af as SynthesisSchema, ap as TimelineEvent, ao as TimelineEventSchema, J as createDeepResearchTools } from './tools-CpbT0z40.js';
 import * as ai from 'ai';
 import { LanguageModel, embed, ToolLoopAgent } from 'ai';
 
@@ -12,11 +12,11 @@ import { LanguageModel, embed, ToolLoopAgent } from 'ai';
  */
 
 declare const ResearchPhaseSchema: z.ZodEnum<{
+    synthesis: "synthesis";
     "query-decomposition": "query-decomposition";
     "source-discovery": "source-discovery";
     "content-extraction": "content-extraction";
     analysis: "analysis";
-    synthesis: "synthesis";
     visualization: "visualization";
 }>;
 type ResearchPhase = z.infer<typeof ResearchPhaseSchema>;
@@ -41,10 +41,10 @@ type QualityScoringWeights = z.infer<typeof QualityScoringWeightsSchema>;
 declare const DEFAULT_SCORING_WEIGHTS: QualityScoringWeights;
 declare const CredibilityTierSchema: z.ZodEnum<{
     academic: "academic";
-    government: "government";
-    "major-news": "major-news";
     technical: "technical";
     general: "general";
+    government: "government";
+    "major-news": "major-news";
 }>;
 type CredibilityTier = z.infer<typeof CredibilityTierSchema>;
 interface CredibilityConfig {
