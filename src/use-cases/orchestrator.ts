@@ -4,7 +4,6 @@
  */
 import { v4 as uuid } from "uuid";
 import pLimit from "p-limit";
-// @ts-ignore - no declaration file available
 import { loggers } from "@onegenui/utils";
 import type { DeepSearchPort } from "../ports/deep-search.port.js";
 import type {

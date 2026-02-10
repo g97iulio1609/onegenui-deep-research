@@ -10,8 +10,6 @@ import type { EffortLevel, EffortConfig } from "../domain/effort-level.schema.js
 import { EFFORT_PRESETS } from "../domain/effort-level.schema.js";
 import type { ResearchEvent } from "../domain/events.schema.js";
 
-// Use web-search package for actual search/scrape
-// @ts-ignore - no declaration file available
 import { WebSearchUseCase, OneCrawlSearchAdapter, OneCrawlScraperAdapter } from "@onegenui/web-search";
 
 export interface DeepResearchAgentOptions {
