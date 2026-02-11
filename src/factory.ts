@@ -6,6 +6,7 @@ import type { LanguageModel } from "ai";
 import type { ResearchEvent } from "./domain/events.schema.js";
 import type { EffortLevel } from "./domain/effort-level.schema.js";
 import { createDeepResearchAgent, type DeepResearchAgentResult } from "./agent/deep-research-agent.js";
+import { createDeepAgentResearch } from "./agent/deep-agent-research.js";
 
 export interface DeepResearchFactoryOptions {
   model: LanguageModel;
@@ -106,3 +107,14 @@ export function createDeepResearch(
 // Re-export types
 export type { DeepResearchAgentResult } from "./agent/deep-research-agent.js";
 export { EFFORT_PRESETS, type EffortLevel, type EffortConfig } from "./domain/effort-level.schema.js";
+
+/**
+ * Create a DeepAgent-based research instance (v2)
+ * Simpler alternative using planning + subagents from @onegenui/deep-agents
+ */
+export function createDeepResearchV2(config: DeepResearchFactoryOptions) {
+  return createDeepAgentResearch({
+    model: config.model,
+    maxSteps: 50,
+  });
+}

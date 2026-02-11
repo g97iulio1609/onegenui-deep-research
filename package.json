@@ -36,6 +36,7 @@
     "@onegenui/providers": "workspace:*",
     "@onegenui/schemas": "workspace:*",
     "@onegenui/utils": "workspace:*",
+    "@onegenui/deep-agents": "workspace:*",
     "@onegenui/web-search": "workspace:*",
     "lru-cache": "^10.4.3",
     "p-limit": "^6.1.0",

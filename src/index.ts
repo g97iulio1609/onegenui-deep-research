@@ -27,9 +27,16 @@ export {
   type DeepResearchAgentResult,
 } from "./agent/deep-research-agent.js";
 
+// DeepAgent-based alternative (v2)
+export {
+  createDeepAgentResearch,
+  type DeepAgentResearchConfig,
+} from "./agent/deep-agent-research.js";
+
 // Factory (KISS: single function for complete setup)
 export {
   createDeepResearch,
+  createDeepResearchV2,
   type DeepResearchFactoryOptions,
   type DeepResearchOptions,
   type DeepResearchInstance,
