@@ -20,14 +20,11 @@ import type {
   Section,
   Citation,
 } from "../domain/synthesis.schema.js";
-
-const OutlineSchema = z.array(
-  z.object({
-    title: z.string(),
-    topics: z.array(z.string()),
-    sourceIndices: z.array(z.number()),
-  }),
-);
+import {
+  generateOutline as doGenerateOutline,
+  generateRelatedQuestions as doGenerateRelatedQuestions,
+  extractFindings,
+} from "./synthesis-helpers.js";
 
 const SectionContentSchema = z.object({
   content: z.string(),
@@ -56,18 +53,15 @@ export class SynthesizerAdapter implements SynthesizerPort {
     const opts = { ...DEFAULT_OPTIONS, ...options };
     const citations = this.formatCitations(sources);
 
-    // Generate outline
     const outline = await this.generateOutline(contents, query);
     yield { type: "outline", data: outline };
 
-    // Generate executive summary
     const executiveSummary = await this.generateSummary(
       contents,
       opts.maxSummaryLength,
     );
     yield { type: "summary", data: executiveSummary };
 
-    // Generate sections
     const sections: Section[] = [];
     for (const [index, outlineSection] of outline.entries()) {
       const section = await this.generateSection(
@@ -79,18 +73,19 @@ export class SynthesizerAdapter implements SynthesizerPort {
       yield { type: "section", data: section };
     }
 
-    // Extract key findings
-    const keyFindings = await this.extractFindings(contents);
+    const keyFindings = await extractFindings(contents);
     yield { type: "findings", data: keyFindings };
 
-    // Generate related questions
     let relatedQuestions: string[] = [];
     if (opts.generateRelatedQuestions) {
-      relatedQuestions = await this.generateRelatedQuestions(query, contents);
+      relatedQuestions = await doGenerateRelatedQuestions(
+        this.llm,
+        query,
+        contents,
+      );
       yield { type: "questions", data: relatedQuestions };
     }
 
-    // Build final synthesis
     const synthesis: Synthesis = {
       executiveSummary,
       keyFindings,
@@ -105,70 +100,11 @@ export class SynthesizerAdapter implements SynthesizerPort {
     return synthesis;
   }
 
-  async generateOutline(
-    contents: AnalyzedContent[],
-    query: ResearchQuery,
-  ): Promise<OutlineSection[]> {
-    const topicsSummary = contents
-      .map((c, i) => `Source ${i + 1}: ${c.topics.join(", ")}`)
-      .join("\n");
-
-    const keyPointsSummary = contents
-      .map((c, i) => `Source ${i + 1}: ${c.keyPoints.slice(0, 3).join("; ")}`)
-      .join("\n");
-
-    const prompt = `Create an outline for a research report on: "${query.originalQuery}"
-
-Main topics identified: ${query.mainTopics.join(", ")}
-
-Source topics:
-${topicsSummary}
-
-Key points from sources:
-${keyPointsSummary}
-
-Create 4-6 logical sections for the report. Each section should:
-1. Have a clear, descriptive title
-2. Cover related topics
-3. Reference which sources are relevant (by index)
-
-Return a JSON array with: title, topics (array), sourceIndices (array of source numbers 0-indexed)`;
-
-    try {
-      const result = await this.llm.generate(prompt, OutlineSchema);
-      return result.data.map((s) => ({
-        title: s.title,
-        topics: s.topics,
-        sourceIds: s.sourceIndices.map((i) => contents[i]?.sourceId ?? ""),
-      }));
-    } catch {
-      // Fallback outline
-      return [
-        {
-          title: "Overview",
-          topics: query.mainTopics,
-          sourceIds: contents.slice(0, 3).map((c) => c.sourceId),
-        },
-        {
-          title: "Key Findings",
-          topics: ["findings", "insights"],
-          sourceIds: contents.map((c) => c.sourceId),
-        },
-        {
-          title: "Analysis",
-          topics: ["analysis", "implications"],
-          sourceIds: contents.slice(-3).map((c) => c.sourceId),
-        },
-      ];
-    }
-  }
-
   async generateSummary(
     contents: AnalyzedContent[],
     maxLength: number,
   ): Promise<string> {
     const keyPoints = contents.flatMap((c) => c.keyPoints).slice(0, 15);
-
     const prompt = `Write a concise executive summary (max ${maxLength} words) based on these key findings:
 
 ${keyPoints.map((kp, i) => `${i + 1}. ${kp}`).join("\n")}
@@ -193,15 +129,12 @@ Return just the summary text.`;
     contents: AnalyzedContent[],
     sources: Source[],
   ): Promise<Section> {
-    // Get relevant content for this section
     const relevantContents = contents.filter(
       (c) =>
         outline.sourceIds.includes(c.sourceId) ||
         c.topics.some((t) => outline.topics.includes(t)),
     );
-
     const relevantPoints = relevantContents.flatMap((c) => c.keyPoints);
-
     const prompt = `Write a detailed section for a research report.
 
 Section Title: ${outline.title}
@@ -223,7 +156,6 @@ Return a JSON object with:
 
     try {
       const result = await this.llm.generate(prompt, SectionContentSchema);
-
       return {
         id: uuid(),
         title: outline.title,
@@ -259,57 +191,10 @@ Return a JSON object with:
     }));
   }
 
-  private async extractFindings(
+  async generateOutline(
     contents: AnalyzedContent[],
-  ): Promise<import("../domain/synthesis.schema.js").KeyFinding[]> {
-    const allKeyPoints = contents.flatMap((c, i) =>
-      c.keyPoints.map((kp) => ({ point: kp, sourceIndex: i })),
-    );
-
-    // Deduplicate and rank key points
-    const uniquePoints = [...new Set(allKeyPoints.map((p) => p.point))];
-
-    return uniquePoints.slice(0, 10).map((point, i) => ({
-      id: uuid(),
-      finding: point,
-      confidence: i < 3 ? "high" : i < 7 ? "medium" : "low",
-      citationIds: allKeyPoints
-        .filter((p) => p.point === point)
-        .map((p) => `[${p.sourceIndex + 1}]`),
-    }));
-  }
-
-  private async generateRelatedQuestions(
     query: ResearchQuery,
-    contents: AnalyzedContent[],
-  ): Promise<string[]> {
-    const topics = [...new Set(contents.flatMap((c) => c.topics))];
-
-    const prompt = `Based on this research query and findings, suggest 3-5 follow-up questions.
-
-Original query: "${query.originalQuery}"
-Topics covered: ${topics.join(", ")}
-Main findings: ${contents
-      .flatMap((c) => c.keyPoints)
-      .slice(0, 5)
-      .join("; ")}
-
-Generate questions that:
-1. Explore deeper aspects of the topic
-2. Address gaps in the current research
-3. Investigate related but uncovered areas
-
-Return a JSON array of question strings.`;
-
-    try {
-      const result = await this.llm.generate(prompt, z.array(z.string()));
-      return result.data.slice(0, 5);
-    } catch {
-      return [
-        `What are the latest developments in ${query.mainTopics[0]}?`,
-        `How does ${query.mainTopics[0]} compare to alternatives?`,
-        `What are the future implications of these findings?`,
-      ];
-    }
+  ): Promise<OutlineSection[]> {
+    return doGenerateOutline(this.llm, contents, query);
   }
 }

@@ -12,6 +12,17 @@ import {
   type EffortConfig,
 } from "./domain/effort-level.schema";
 
+// Re-export credibility module for backward compatibility
+export {
+  CredibilityTierSchema,
+  type CredibilityTier,
+  type CredibilityConfig,
+  CREDIBILITY_TIERS,
+  getDomainCredibility,
+  JS_REQUIRED_DOMAINS,
+  requiresJavaScript,
+} from "./config/credibility.js";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Research Phases
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,8 +40,8 @@ export type ResearchPhase = z.infer<typeof ResearchPhaseSchema>;
 export interface PhaseConfig {
   id: ResearchPhase;
   label: string;
-  weight: number; // Percentage weight for progress calculation (0-100)
-  icon: string; // Icon identifier for UI
+  weight: number;
+  icon: string;
 }
 
 export const RESEARCH_PHASES: readonly PhaseConfig[] = [
@@ -90,90 +101,6 @@ export const DEFAULT_SCORING_WEIGHTS: QualityScoringWeights = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Domain Credibility Scores
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const CredibilityTierSchema = z.enum([
-  "academic",
-  "government",
-  "major-news",
-  "technical",
-  "general",
-]);
-export type CredibilityTier = z.infer<typeof CredibilityTierSchema>;
-
-export interface CredibilityConfig {
-  domains: string[];
-  score: number;
-}
-
-export const CREDIBILITY_TIERS: Record<CredibilityTier, CredibilityConfig> = {
-  academic: {
-    domains: [
-      "nature.com",
-      "science.org",
-      "springer.com",
-      "wiley.com",
-      "arxiv.org",
-      "pubmed.ncbi.nlm.nih.gov",
-      "semanticscholar.org",
-      "ieee.org",
-      "acm.org",
-      "jstor.org",
-    ],
-    score: 0.95,
-  },
-  government: {
-    domains: [".gov", ".edu", "who.int", "europa.eu", "un.org"],
-    score: 0.9,
-  },
-  "major-news": {
-    domains: [
-      "reuters.com",
-      "apnews.com",
-      "bbc.com",
-      "bbc.co.uk",
-      "nytimes.com",
-      "washingtonpost.com",
-      "theguardian.com",
-      "economist.com",
-      "ft.com",
-      "wsj.com",
-    ],
-    score: 0.8,
-  },
-  technical: {
-    domains: [
-      "github.com",
-      "stackoverflow.com",
-      "developer.mozilla.org",
-      "docs.microsoft.com",
-      "cloud.google.com",
-      "aws.amazon.com",
-    ],
-    score: 0.8,
-  },
-  general: {
-    domains: [],
-    score: 0.5,
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// JS-Required Domains (need browser for extraction)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const JS_REQUIRED_DOMAINS: readonly string[] = [
-  "twitter.com",
-  "x.com",
-  "linkedin.com",
-  "facebook.com",
-  "instagram.com",
-  "tiktok.com",
-  "reddit.com",
-] as const;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Scraping Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -190,7 +117,7 @@ export const DEFAULT_SCRAPING_CONFIG: ScrapingConfig = {
   maxConcurrent: 15,
   timeoutMs: 20000,
   maxContentLength: 150000,
-  cacheTtlMs: 1800000, // 30 min
+  cacheTtlMs: 1800000,
   maxPerDomain: 5,
 };
 
@@ -208,7 +135,7 @@ export type SearchConfig = z.infer<typeof SearchConfigSchema>;
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
   maxResultsPerQuery: 30,
-  cacheTtlMs: 300000, // 5 min
+  cacheTtlMs: 300000,
   retryAttempts: 3,
   retryDelayMs: 1000,
 };
@@ -238,33 +165,6 @@ export function getResearchConfig(level: EffortLevel): ResearchConfig {
     scraping: DEFAULT_SCRAPING_CONFIG,
     search: DEFAULT_SEARCH_CONFIG,
   };
-}
-
-/**
- * Get credibility score for a domain
- */
-export function getDomainCredibility(domain: string): number {
-  const lowerDomain = domain.toLowerCase();
-
-  for (const [, config] of Object.entries(CREDIBILITY_TIERS)) {
-    for (const pattern of config.domains) {
-      if (pattern.startsWith(".")) {
-        if (lowerDomain.endsWith(pattern)) return config.score;
-      } else {
-        if (lowerDomain.includes(pattern)) return config.score;
-      }
-    }
-  }
-
-  return CREDIBILITY_TIERS.general.score;
-}
-
-/**
- * Check if a domain requires JavaScript for content extraction
- */
-export function requiresJavaScript(domain: string): boolean {
-  const lowerDomain = domain.toLowerCase();
-  return JS_REQUIRED_DOMAINS.some((d) => lowerDomain.includes(d));
 }
 
 // Re-export for convenience

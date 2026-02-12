@@ -12,10 +12,13 @@ import type {
   SearchOptions,
   SearchProgress,
 } from "../ports/deep-search.port";
-import type { SubQuery, SearchStrategy } from "../domain/research-query.schema";
-import type { Source, SourceType } from "../domain/source.schema";
+import type { SubQuery } from "../domain/research-query.schema";
+import type { Source } from "../domain/source.schema";
 import { ApiKeyAuthAdapter } from "./api-key-auth.adapter";
-import { v4 as uuid } from "uuid";
+import {
+  parseArxivXml,
+  mapPaperToSource,
+} from "./academic-parsers.js";
 
 // LRU cache for academic results
 const resultCache = new Map<
@@ -41,7 +44,6 @@ export class AcademicSearchAdapter implements DeepSearchPort {
 
     const sources: Omit<Source, "content" | "extractedAt">[] = [];
 
-    // Search academic sources in parallel
     const [semanticResults, arxivResults] = await Promise.allSettled([
       this.searchSemanticScholar(query, options.maxResults),
       this.searchArxiv(query, options.maxResults),
@@ -62,7 +64,6 @@ export class AcademicSearchAdapter implements DeepSearchPort {
       durationMs: Date.now() - startTime,
     };
 
-    // Cache results
     resultCache.set(cacheKey, { result, timestamp: Date.now() });
 
     return result;
@@ -125,7 +126,6 @@ export class AcademicSearchAdapter implements DeepSearchPort {
         Accept: "application/json",
       };
 
-      // Add API key if available
       const authHeaders = this.apiKeyAuth.getAuthHeaders("semantic_scholar");
       if (authHeaders) {
         Object.assign(headers, authHeaders);
@@ -138,7 +138,7 @@ export class AcademicSearchAdapter implements DeepSearchPort {
       const papers = data.data || [];
 
       return papers.map((paper: Record<string, unknown>) =>
-        this.mapPaperToSource(paper, "semantic_scholar"),
+        mapPaperToSource(paper, "semantic_scholar"),
       );
     } catch {
       return [];
@@ -157,98 +157,9 @@ export class AcademicSearchAdapter implements DeepSearchPort {
       if (!response.ok) return [];
 
       const text = await response.text();
-      return this.parseArxivXml(text);
+      return parseArxivXml(text);
     } catch {
       return [];
     }
-  }
-
-  private parseArxivXml(
-    xml: string,
-  ): Omit<Source, "content" | "extractedAt">[] {
-    const results: Omit<Source, "content" | "extractedAt">[] = [];
-    const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
-    let match;
-
-    while ((match = entryRegex.exec(xml)) !== null) {
-      const entry = match[1]!;
-
-      const getId = (tag: string) => {
-        const m = entry.match(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`));
-        return m ? m[1]!.trim() : "";
-      };
-
-      const title = getId("title").replace(/\s+/g, " ");
-      const summary = getId("summary").replace(/\s+/g, " ");
-      const id = getId("id");
-      const published = getId("published");
-
-      if (title && id) {
-        results.push({
-          id: uuid(),
-          url: id,
-          title,
-          snippet: summary.slice(0, 300),
-          domain: "arxiv.org",
-          sourceType: "academic" as SourceType,
-          credibilityScore: 0.88,
-          relevanceScore: 0.8,
-          media: [],
-          requiresAuth: false,
-          publishedAt: published ? new Date(published) : undefined,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  private mapPaperToSource(
-    paper: Record<string, unknown>,
-    source: string,
-  ): Omit<Source, "content" | "extractedAt"> {
-    const authors = Array.isArray(paper.authors)
-      ? paper.authors.map(
-          (a: Record<string, unknown>) => (a.name as string) || "",
-        )
-      : [];
-
-    return {
-      id: uuid(),
-      url:
-        (paper.url as string) ||
-        `https://semanticscholar.org/paper/${paper.paperId}`,
-      title: (paper.title as string) || "Untitled",
-      snippet: ((paper.abstract as string) || "").slice(0, 300),
-      domain:
-        source === "semantic_scholar" ? "semanticscholar.org" : "arxiv.org",
-      sourceType: "academic" as SourceType,
-      credibilityScore: this.calculateAcademicCredibility(paper),
-      relevanceScore: 0.8,
-      media: [],
-      requiresAuth: false,
-      author: authors.join(", "),
-      publishedAt: paper.year ? new Date(`${paper.year}-01-01`) : undefined,
-    };
-  }
-
-  private calculateAcademicCredibility(paper: Record<string, unknown>): number {
-    let score = 0.8; // Base academic score
-
-    // Boost for citations
-    const citations = paper.citationCount as number | undefined;
-    if (typeof citations === "number") {
-      if (citations > 100) score += 0.1;
-      else if (citations > 50) score += 0.07;
-      else if (citations > 10) score += 0.05;
-    }
-
-    // Recent papers slightly boosted
-    const year = paper.year as number | undefined;
-    if (typeof year === "number" && year >= new Date().getFullYear() - 2) {
-      score += 0.02;
-    }
-
-    return Math.min(score, 0.95);
   }
 }

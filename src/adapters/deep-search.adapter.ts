@@ -10,35 +10,16 @@ import type {
   SearchResult,
   SearchProgress,
 } from "../ports/deep-search.port.js";
-import type {
-  SubQuery,
-  SearchStrategy,
-} from "../domain/research-query.schema.js";
-import type { Source, SourceType } from "../domain/source.schema.js";
-import { v4 as uuid } from "uuid";
+import type { SubQuery } from "../domain/research-query.schema.js";
+import {
+  parseDuckDuckGoResults,
+  toSource,
+  getCacheKey,
+  type RawSearchResult,
+} from "./deep-search-utils.js";
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX = 200;
-
-/** Map search strategy to source type */
-const STRATEGY_TO_TYPE: Record<SearchStrategy, SourceType> = {
-  broad: "general",
-  academic: "academic",
-  news: "news",
-  technical: "technical",
-  social: "social",
-  official: "official",
-};
-
-/** Search engines by strategy */
-const STRATEGY_ENGINES: Record<SearchStrategy, string> = {
-  broad: "duckduckgo",
-  academic: "google", // with site:scholar.google.com or arxiv.org
-  news: "duckduckgo", // with news type
-  technical: "duckduckgo",
-  social: "duckduckgo",
-  official: "google",
-};
 
 export interface SearchAdapterConfig {
   maxConcurrency?: number;
@@ -57,7 +38,7 @@ export class DeepSearchAdapter implements DeepSearchPort {
   }
 
   async search(query: string, options: SearchOptions): Promise<SearchResult> {
-    const cacheKey = this.getCacheKey(query, options);
+    const cacheKey = getCacheKey(query, options);
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
@@ -69,7 +50,7 @@ export class DeepSearchAdapter implements DeepSearchPort {
 
       const searchResult: SearchResult = {
         query,
-        sources: results.map((r) => this.toSource(r, options.strategy)),
+        sources: results.map((r) => toSource(r, options.strategy)),
         totalFound: results.length,
         durationMs: Date.now() - startTime,
       };
@@ -91,7 +72,6 @@ export class DeepSearchAdapter implements DeepSearchPort {
     options: SearchOptions,
     onProgress?: (progress: SearchProgress) => void,
   ): AsyncGenerator<SearchResult, void, unknown> {
-    // Sort by priority
     const sortedQueries = [...queries].sort((a, b) => b.priority - a.priority);
 
     const tasks = sortedQueries.map((subQuery) =>
@@ -144,24 +124,19 @@ export class DeepSearchAdapter implements DeepSearchPort {
   private buildSearchQuery(query: string, options: SearchOptions): string {
     let searchQuery = query;
 
-    // Add site restrictions for academic search
     if (options.strategy === "academic") {
       searchQuery = `${query} site:arxiv.org OR site:scholar.google.com OR site:pubmed.gov OR site:nature.com`;
     }
 
-    // Add site restrictions for official sources
     if (options.strategy === "official") {
       searchQuery = `${query} site:gov OR site:edu OR site:org`;
     }
 
-    // Add technical site restrictions
     if (options.strategy === "technical") {
       searchQuery = `${query} site:github.com OR site:stackoverflow.com OR site:dev.to`;
     }
 
-    // Add date range if specified
     if (options.dateRange?.start || options.dateRange?.end) {
-      // DuckDuckGo date syntax
       const start = options.dateRange.start?.toISOString().split("T")[0];
       const end = options.dateRange.end?.toISOString().split("T")[0];
       if (start && end) {
@@ -176,7 +151,6 @@ export class DeepSearchAdapter implements DeepSearchPort {
     query: string,
     options: SearchOptions,
   ): Promise<RawSearchResult[]> {
-    // Use DuckDuckGo HTML search (no API key needed, no browser)
     const url = new URL("https://html.duckduckgo.com/html/");
     url.searchParams.set("q", query);
 
@@ -203,142 +177,9 @@ export class DeepSearchAdapter implements DeepSearchPort {
       }
 
       const html = await response.text();
-      return this.parseDuckDuckGoResults(html, options.maxResults);
+      return parseDuckDuckGoResults(html, options.maxResults);
     } finally {
       clearTimeout(timeoutId);
     }
   }
-
-  private parseDuckDuckGoResults(
-    html: string,
-    maxResults: number,
-  ): RawSearchResult[] {
-    const results: RawSearchResult[] = [];
-
-    // Parse DuckDuckGo HTML results
-    const resultRegex =
-      /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([^<]*)/gi;
-
-    let match;
-    while (
-      (match = resultRegex.exec(html)) !== null &&
-      results.length < maxResults
-    ) {
-      const [, url, title, snippet] = match;
-      if (url && title && !url.includes("duckduckgo.com")) {
-        results.push({
-          url: this.cleanUrl(url),
-          title: this.cleanText(title),
-          snippet: this.cleanText(snippet),
-        });
-      }
-    }
-
-    // Fallback: simpler regex if first doesn't work
-    if (results.length === 0) {
-      const simpleRegex =
-        /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*class="[^"]*result[^"]*"[^>]*>[\s\S]*?<\/a>/gi;
-      while (
-        (match = simpleRegex.exec(html)) !== null &&
-        results.length < maxResults
-      ) {
-        const url = match[1];
-        if (!url.includes("duckduckgo.com")) {
-          results.push({ url, title: "", snippet: "" });
-        }
-      }
-    }
-
-    return results;
-  }
-
-  private cleanUrl(url: string): string {
-    // DuckDuckGo wraps URLs
-    if (url.includes("uddg=")) {
-      const match = url.match(/uddg=([^&]+)/);
-      if (match) {
-        return decodeURIComponent(match[1]);
-      }
-    }
-    return url;
-  }
-
-  private cleanText(text: string): string {
-    return text
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .trim();
-  }
-
-  private toSource(
-    result: RawSearchResult,
-    strategy: SearchStrategy,
-  ): Omit<Source, "content" | "extractedAt"> {
-    const url = new URL(result.url);
-
-    return {
-      id: uuid(),
-      url: result.url,
-      title: result.title || url.hostname,
-      snippet: result.snippet,
-      domain: url.hostname.replace("www.", ""),
-      sourceType: STRATEGY_TO_TYPE[strategy],
-      credibilityScore: this.estimateCredibility(url.hostname),
-      relevanceScore: 0.5, // Will be calculated later by ranker
-      media: [],
-      requiresAuth: false,
-    };
-  }
-
-  private estimateCredibility(domain: string): number {
-    const cleanDomain = domain.replace("www.", "");
-
-    // High credibility sources
-    if (
-      cleanDomain.endsWith(".gov") ||
-      cleanDomain.endsWith(".edu") ||
-      cleanDomain.includes("nature.com") ||
-      cleanDomain.includes("science.org") ||
-      cleanDomain.includes("arxiv.org") ||
-      cleanDomain.includes("pubmed")
-    ) {
-      return 0.9;
-    }
-
-    // Medium-high credibility
-    if (
-      cleanDomain.includes("wikipedia.org") ||
-      cleanDomain.includes("github.com") ||
-      cleanDomain.includes("stackoverflow.com") ||
-      cleanDomain.includes("bbc.com") ||
-      cleanDomain.includes("reuters.com")
-    ) {
-      return 0.8;
-    }
-
-    // Medium credibility
-    if (
-      cleanDomain.includes("medium.com") ||
-      cleanDomain.includes("dev.to") ||
-      cleanDomain.endsWith(".org")
-    ) {
-      return 0.7;
-    }
-
-    return 0.5;
-  }
-
-  private getCacheKey(query: string, options: SearchOptions): string {
-    return `${query}|${options.strategy}|${options.maxResults}`;
-  }
-}
-
-interface RawSearchResult {
-  url: string;
-  title: string;
-  snippet: string;
 }

@@ -10,19 +10,17 @@ import type {
   ScrapeOptions,
   ScrapeProgress,
 } from "../ports/content-scraper.port.js";
-import type { MediaItem } from "../domain/source.schema.js";
 import {
   requiresJavaScript,
   DEFAULT_SCRAPING_CONFIG,
   type ScrapingConfig,
 } from "../config.js";
-
-/** User agents for rotation */
-const USER_AGENTS = [
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-];
+import {
+  extractMainContent,
+  extractMedia,
+  getRandomUserAgent,
+  errorResult,
+} from "./scraper-utils.js";
 
 export class LightweightScraperAdapter implements ContentScraperPort {
   private cache: LRUCache<string, ScrapedContent>;
@@ -48,7 +46,7 @@ export class LightweightScraperAdapter implements ContentScraperPort {
     try {
       const response = await this.fetchWithTimeout(url, options);
       if (!response.ok) {
-        return this.errorResult(url, `HTTP ${response.status}`, startTime);
+        return errorResult(url, `HTTP ${response.status}`, startTime);
       }
 
       const html = await response.text();
@@ -58,7 +56,7 @@ export class LightweightScraperAdapter implements ContentScraperPort {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      return this.errorResult(url, message, startTime);
+      return errorResult(url, message, startTime);
     }
   }
 
@@ -124,7 +122,7 @@ export class LightweightScraperAdapter implements ContentScraperPort {
       return await fetch(url, {
         signal: controller.signal,
         headers: {
-          "User-Agent": options.userAgent || this.getRandomUserAgent(),
+          "User-Agent": options.userAgent || getRandomUserAgent(),
           Accept:
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.9",
@@ -145,17 +143,14 @@ export class LightweightScraperAdapter implements ContentScraperPort {
     const startTime = Date.now();
     const maxLength = options.maxContentLength || this.config.maxContentLength;
 
-    // Extract title
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     const title = titleMatch?.[1]?.trim() || "";
 
-    // Extract meta description
     const descMatch = html.match(
       /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i,
     );
     const excerpt = descMatch?.[1]?.trim() || "";
 
-    // Extract author
     const authorMatch =
       html.match(
         /<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i,
@@ -165,20 +160,15 @@ export class LightweightScraperAdapter implements ContentScraperPort {
       );
     const author = authorMatch?.[1]?.trim();
 
-    // Extract publish date
     const dateMatch =
       html.match(
         /<meta[^>]+property=["']article:published_time["'][^>]+content=["']([^"']+)["']/i,
       ) || html.match(/<time[^>]+datetime=["']([^"']+)["']/i);
     const publishedAt = dateMatch?.[1] ? new Date(dateMatch[1]) : undefined;
 
-    // Extract main content
-    const content = this.extractMainContent(html, maxLength);
+    const content = extractMainContent(html, maxLength);
+    const media = options.extractMedia ? extractMedia(html, url) : [];
 
-    // Extract media if enabled
-    const media = options.extractMedia ? this.extractMedia(html, url) : [];
-
-    // Detect language
     const langMatch = html.match(/<html[^>]+lang=["']([^"']+)["']/i);
     const language = langMatch?.[1]?.substring(0, 2);
 
@@ -198,130 +188,7 @@ export class LightweightScraperAdapter implements ContentScraperPort {
     };
   }
 
-  private extractMainContent(html: string, maxLength: number): string {
-    // Remove scripts, styles, and other non-content elements
-    let text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "")
-      .replace(/<!--[\s\S]*?-->/g, "");
-
-    // Try to find main content area
-    const mainMatch =
-      text.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
-      text.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ||
-      text.match(
-        /<div[^>]+class=["'][^"']*content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
-      );
-
-    if (mainMatch) {
-      text = mainMatch[1];
-    }
-
-    // Convert to plain text
-    text = text
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<\/h[1-6]>/gi, "\n\n")
-      .replace(/<\/li>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/\n{3,}/g, "\n\n")
-      .replace(/[ \t]+/g, " ")
-      .trim();
-
-    if (text.length > maxLength) {
-      text = text.substring(0, maxLength) + "...";
-    }
-
-    return text;
-  }
-
-  private extractMedia(html: string, baseUrl: string): MediaItem[] {
-    const media: MediaItem[] = [];
-    const baseUrlObj = new URL(baseUrl);
-
-    // Extract images
-    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-    let imgMatch;
-    while ((imgMatch = imgRegex.exec(html)) !== null && media.length < 10) {
-      const src = this.resolveUrl(imgMatch[1], baseUrlObj);
-      if (src && !src.includes("data:") && !src.includes("pixel")) {
-        const altMatch = imgMatch[0].match(/alt=["']([^"']+)["']/i);
-        media.push({
-          type: "image",
-          url: src,
-          title: altMatch?.[1],
-        });
-      }
-    }
-
-    // Extract videos (YouTube, Vimeo embeds)
-    const iframeRegex = /<iframe[^>]+src=["']([^"']+)["'][^>]*>/gi;
-    let iframeMatch;
-    while (
-      (iframeMatch = iframeRegex.exec(html)) !== null &&
-      media.length < 15
-    ) {
-      const src = iframeMatch[1];
-      if (src.includes("youtube.com") || src.includes("youtu.be")) {
-        media.push({ type: "video", url: src });
-      } else if (src.includes("vimeo.com")) {
-        media.push({ type: "video", url: src });
-      }
-    }
-
-    return media;
-  }
-
-  private resolveUrl(src: string, baseUrl: URL): string | null {
-    try {
-      if (src.startsWith("//")) {
-        return `${baseUrl.protocol}${src}`;
-      }
-      if (src.startsWith("/")) {
-        return `${baseUrl.origin}${src}`;
-      }
-      if (src.startsWith("http")) {
-        return src;
-      }
-      return new URL(src, baseUrl.origin).href;
-    } catch {
-      return null;
-    }
-  }
-
   private getCacheKey(url: string, options: ScrapeOptions): string {
     return `${url}|${options.extractMedia}|${options.maxContentLength}`;
-  }
-
-  private getRandomUserAgent(): string {
-    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-  }
-
-  private errorResult(
-    url: string,
-    error: string,
-    startTime: number,
-  ): ScrapedContent {
-    return {
-      url,
-      title: "",
-      content: "",
-      excerpt: "",
-      media: [],
-      wordCount: 0,
-      success: false,
-      error,
-      durationMs: Date.now() - startTime,
-    };
   }
 }
