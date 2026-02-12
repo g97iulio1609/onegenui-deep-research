@@ -182,6 +182,28 @@ import { deepResearchTool } from "@onegenui/deep-research/tools";
 mcpServer.registerTool(deepResearchTool);
 ```
 
+## React Native Compatibility
+
+This package is cross-platform compatible with React Native with the following considerations:
+
+1. **`uuid` polyfill required** — Several adapters use `uuid` v4 which relies on `crypto.getRandomValues()`. On React Native, install and import the polyfill **before** any other import from this package:
+
+   ```bash
+   npm install react-native-get-random-values
+   ```
+
+   ```typescript
+   // Must be the very first import in your app entry point
+   import "react-native-get-random-values";
+   import { createDeepResearch } from "@onegenui/deep-research";
+   ```
+
+2. **`@onegenui/web-search` dependency** — The `deep-research-agent` imports from `@onegenui/web-search`. If web-search's barrel export pulls in Node-specific modules (e.g., `fs`, `child_process`), the web-search package must provide React Native-safe exports. The specific adapters used (`OneCrawlSearchAdapter`, `OneCrawlScraperAdapter`) are themselves platform-agnostic.
+
+3. **CLI excluded** — The `cli.ts` entry point uses Node APIs (`process.argv`) and is not exported from the library entry point. It is only available via the `bin` field for command-line use.
+
+4. **`p-limit` and `lru-cache`** — Both are pure JavaScript, fully platform-agnostic.
+
 ## License
 
 MIT

@@ -1,5 +1,9 @@
 /**
  * Adapters barrel export
+ *
+ * React Native: Several adapters use `uuid` v4 which relies on
+ * `crypto.getRandomValues()`. On React Native you must install and
+ * import `react-native-get-random-values` before any adapter is used.
  */
 export * from "./lightweight-scraper.adapter.js";
 export * from "./deep-search.adapter.js";
